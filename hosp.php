@@ -1,21 +1,79 @@
 <?php
-/**
- *
- *     /\      |—————|   ———————    |\    |     |———————|
- *    /  \     |     |      |       | \   |     |       |
- *   /____\    |—————|      |       |  \  |     |       |
- *  /      \   |            |       |   \ |     |       |
- * /        \  |         ———————    |    \|     |———————|
- *
- *  版本：V0.2.200903
- *  作者：邱岷岷
- *  时间：2020/9/4
- */
 
-//框架初始化
-frameInitialize();
+namespace hosp;
 
-/**数据库配置*/
+use Exception;
+use PDO;
+use ReflectionException;
+use ReflectionFunction;
+
+init();
+
+/** 用户自定义注册和变更配置代码，框架升级替换函数内容即可 */
+function custom()
+{
+    //替换数据库配置
+    config('database', [
+        'host' => '127.0.0.1',
+        'port' => '3306',
+        'dbname' => 'tran_group',
+        'username' => 'root',
+        'password' => 'root',
+        //表名前缀
+        'tableNamePrefix' => 'hisi_',
+    ]);
+    action('/user/updatePassword', function($name){
+
+    });
+
+    action('/user/getUserInfo', function(){
+
+    });
+
+    action('/user/userInfo', function(){
+
+
+    });
+
+    model('/user/selectUserById', function(){
+
+    });
+
+}
+
+/** 应用配置 */
+config('app', [
+    //调试模式，会检测配置信息
+    'debug' => true,
+    //入参规定
+    'request' => [
+        //分页规定
+        'page' => [
+            //页数
+            'page' => 'page',
+            //页记录数
+            'size' => 'size',
+        ]
+    ],
+    //出参格式
+    'response' => [
+        //放在data下面
+        'page' => [
+            'total' => 'total',
+            'list' => 'list',
+        ]
+    ],
+    //格式请求真删锁(仅对格式请求有效)
+    'true_delete_lock' => [
+        //开关
+        'switch' => true,
+        //密钥
+        'key' => '123123123213',
+        //入参值
+        'param' => 'trueDeleteKey'
+    ],
+]);
+/** 数据库配置 */
 config('database', [
     'type' => 'mysql',
     'host' => '127.0.0.1',
@@ -58,77 +116,7 @@ config('database', [
         'hisi_user.isuse' => 2,
     ],
 ]);
-/**
- * 应用配置
- */
-config('app', [
-    //调试模式，会检测配置信息
-    'debug' => true,
-    //入参规定
-    'request' => [
-        //分页规定
-        'page' => [
-            //页数
-            'page' => 'page',
-            //页记录数
-            'size' => 'size',
-        ]
-    ],
-    //出参格式
-    'response' => [
-        //放在data下面
-        'page' => [
-            'total' => 'total',
-            'list' => 'list',
-        ]
-    ],
-    //apino格式请求真删锁(仅对apino格式请求有效)
-    'trueDeleteLock' => [
-        //开关
-        'switch' => true,
-        //密钥
-        'key' => '123123123213',
-        //入参值
-        'param' => 'trueDeleteKey'
-    ],
-    //用户表配置
-    'user' => [
-        /**
-         * 用户ID关联数据库对应得表字段
-         */
-        'id' => 'hisi_front_user.id',
-        /**
-         * @return mixed 返回关联具体权限的字段值
-         */
-        'role' => function ($userId) {
-        },
-        /**权限*/
-        'auth' => [
-            /**
-             * 模式
-             */
-            'mode' => CONFIG,
-            /**
-             * 权限来源
-             */
-            'source' => function ($roleId) {
-                $role = dao('/user/select{by[role_id]}', ['role_id' => $roleId]);
-                $auth = dao('/auth/select{by[role_id]}', ['role_id' => $role['role_id']]);
-                return array_column($auth, 'url');
-            },
-            /**
-             * 忽略
-             */
-            'except' => [
-                '/util/verifyCode',
-                '/util/token'
-            ],
-        ],
-    ]
-]);
-/**
- * 邮箱配置
- */
+/** 邮箱配置 */
 config('smtp', [
     'server' => "",
     'port' => 22,
@@ -137,182 +125,219 @@ config('smtp', [
     'debug' => false,
     'type' => 'HTML',
 ]);
-/**
- * 路由转发
- */
+/** 配置路由 */
 config('route', [
-
+    '/' => function () {
+        echo '欢迎使用Hosp';
+        die();
+    },
 ]);
-/**
- * 角色权限声明，1则为全部权限，0或[]组则无任何权限
- * 默认角色 GUEST, GUEST为常量
- * 该操作为配置式权限申明，
- */
+/** 角色权限声明，1则为全部权限，0或[]组则无任何权限 */
 config('authority', [
-    ADMIN => 1,
-    //无登录用户权限信息
-    GUEST => [],
-    //用户自定义权限
-]);
-/**
- * 入参校验器(根据路由进行校验，位于路由转换后)
- * require(必填)|int(整形)|float(浮点行)|mobile(手机号)|email(邮箱)|具体值
- */
-config('validate', [
-
-]);
-/**
- * 入参转换器
- */
-config('input_converter', [
-
-]);
-
-/**
- * 控制器
- */
-config('controller', [
-    '/user/info' => function () {
-    }
-
-]);
-/**
- * 服务者
- */
-config('service', [
-
-]);
-/**
- * 持久化层(自定义执行得sql语句)
- */
-config('dao', [
-
-]);
-/**
- * 系统预设API
- */
-config('api', [
-    'util' => [
-        'upload' => [
-            'image' => [
-                'fileParam' => 'img',
-                'maxSize' => 4096,
-                'dir' => '/upload/img',
-            ],
-            'php' => [
-                'fileParam' => 'file',
-                'maxSize' => 4096,
-                'dir' => '/upload/file',
-            ],
-        ],
-        //获取验证码，使用sence指定获取验证码，在对应接口会自动验证验证码是否正确
-        'verifyCode' => [
-            'param' => 'code',
-            'sence' => [
-                '/user/register' => VerifyCode::asImage(4, 200, 100),
-                '/user/login' => VerifyCode::asEmail(4, '验证码信息', '您的验证码位#code#,请5分钟内使用！', '#code#'),
-                '/user/reg' => VerifyCode::asMobile(4, ''),
-            ],
-        ],
-        //获取token接口
-        'token' => [
-            //开关，开启强制所有请求携带TOKEN值验证(每次请求前都需要先获取token
-            //)
-            'switch' => true,
-            //入参名
-            'param' => 'token',
-            //获取TOKEN时间间隔
-            'interval' => 1,
-            //生成函数
-            'generator' => function () {
-            },
-        ],
+    /** 角色权限控制(支持静态权限和动态权限) */
+    'role' => [
+        //用户自定义权限
     ],
-    'user' => [
-        //注册接口
-        'register' => [
-            //注册用户名入参名
-            "username" => "username",
-            //注册密码入参名
-            "password" => "password",
-            //注册确认密码入参名
-            "confirmPassword" => "confirmPassword",
-            //密码加密储存回调
-            'passwordEncode' => function ($password) {
-                return md5($password);
-            },
-            /**
-             * 登陆前处理
-             * @return Result 返回数组则通过，返回false则登录失败
-             */
-            'safety' => function ($params) {
-            },
-            /**
-             * 成功回调
-             */
-            'success' => function ($user) {
-            },
-            /**
-             * 失败回调
-             */
-            'error' => function ($username) {
-            },
-        ],
-        //登陆api
-        'login' => [
-            //登陆账户名入参名
-            'username' => 'name',
-            //登陆密码入参名
-            'password' => 'pass',
-            //密码加密回调
-            'passwordEncode' => function ($password) {
+//动态权限写闭包返回结果为数组即可
+//    'role' => function(){
+//
+//    },
+    /** 白名单 */
+    'except' => [
+
+    ],
+]);
+/** 请求配置 */
+config('request', [
+    /** 接口自动校验器，require(必填)|int(整形)|float(浮点行)|mobile(手机号)|email(邮箱)|具体值 */
+    'validate' => [],
+    /** 入参自动转换器 */
+    'converter' => [],
+]);
+/** 控制器方法注册 */
+config('action', [
+    '/system/upload_image' => [
+        'api' => API_UPLOAD,
+        'fileParam' => 'img',
+        'maxSize' => 4096,
+        'dir' => '/upload/img',
+    ],
+    '/system/upload_php' => [
+        'api' => API_UPLOAD,
+        'fileParam' => 'file',
+        'maxSize' => 4096,
+        'dir' => '/upload/file',
+    ],
+    '/system/verify_code_image' => [
+        'api' => API_VERIFY_CODE_IMAGE,
+        'param' => 'code',
+        'number' => 4,
+        'width' => 200,
+        'height' => 100,
+    ],
+    '/system/verify_code_email' => [
+        'api' => API_VERIFY_CODE_EMAIL,
+        'param' => 'code',
+        'number' => 4,
+        'title' => '验证码信息',
+        'content' =>  '您的验证码位#code#,请5分钟内使用！',
+        'code_template' => '#code#',
+    ],
+    '/system/verify_code_mobile' => [
+        'api' => API_VERIFY_CODE_MOBILE,
+        'param' => 'code',
+        'number' => 4,
+    ],
+    '/system/token' => [
+        'api' => API_TOKEN,
+        'switch' => true,
+        //入参名
+        'param' => 'token',
+        //获取TOKEN时间间隔
+        'interval' => 1,
+        //生成函数
+        'generator' => function () {
+        },
+    ],
+    '/system/register' => [
+        'api' => API_REGISTER,
+        /** 表 */
+        'table' => 'hisi_table',
+        /** ID */
+        'id' => 'id',
+        //注册用户名入参名
+        "username" => "username",
+        //注册密码入参名
+        "password" => "password",
+        //注册确认密码入参名
+        "confirmPassword" => "confirmPassword",
+        //密码加密储存回调
+        'passwordEncode' => function ($password) {
+            return md5($password);
+        },
+        /**
+         * 登陆前处理
+         * @return mixed 返回数组则通过，返回false则登录失败
+         */
+        'safety' => function ($params) {
+        },
+        /**
+         * 成功回调
+         */
+        'success' => function ($user) {
+        },
+        /**
+         * 失败回调
+         */
+        'error' => function ($username) {
+        },
+    ],
+    '/system/login' => [
+        'api' => API_LOGIN,
+        //登陆账户名入参名
+        'username' => 'name',
+        //登陆密码入参名
+        'password' => 'pass',
+        //密码加密回调
+        'passwordEncode' => function ($password) {
 //                return md5($password);
-            },
-            /**
-             * 自定义安全回调（安全码校验）
-             * @return bool|null
-             * @var $params array 入参信息
-             */
-            'safety' => function ($params) {
-            },
-            /**
-             * 登录成功回调(日志记录)
-             */
-            'success' => function ($user) {
-            },
-            /**
-             * 登录失败回调，可用户记录用户登录日志
-             * @var $username string 登录用户名
-             */
-            'error' => function ($username) {
-            },
-        ],
-        /**
-         * 登出回调(日志或者删除当前在线用户信息的操作)
-         */
-        'logout' => function ($user_id) {
         },
         /**
-         * 验证是否登陆（追加判断默认已有判断session的用户ID）
+         * 自定义安全回调（安全码校验）
+         * @return bool|null
+         * @var $params array 入参信息
          */
-        'checkLogin' => function ($userId) {
+        'safety' => function ($params) {
+        },
+        /**
+         * 登录成功回调(日志记录)
+         */
+        'success' => function ($user) {
+        },
+        /**
+         * 登录失败回调，可用户记录用户登录日志
+         * @var $username string 登录用户名
+         */
+        'error' => function ($username) {
         },
     ],
+    '/system/logout' => [
+        'api' => API_LOGOUT,
+        'callback' => function () {
+
+        },
+    ],
+    '/system/check_login' => [
+        'api' => API_CHECK_LOGIN,
+        'callback' => function () {
+
+        }
+    ]
 ]);
-/**
- * URL引用
- */
+/** 模型方法注册 */
+config('model', []);
+/** 视图配置 */
+config('view', [
+    'path' => ROOT_PATH . DS . 'view',
+    /** 模板文件 */
+    'layout_file' => '',
+    /** 模板替换字符 */
+    'layout_replace' => '<__CONTENT__>',
+    /** 视图缓存 */
+    'layout_runtime' => ROOT_PATH . DS . 'runtime' . DS . 'view',
+]);
+/** 日志配置 */
+config('log', [
+    /** 日志路径 */
+    'path' => ROOT_PATH . DS . 'log',
+    /** 写入日志等级最低要求（用于生产环境修改此值减少日志量） */
+    'require' => LOG_NORMAL,
+]);
+/** URL映射 */
 config('ref', [
 
 ]);
-/**
- * 内置钩子
- */
-config('hook', [
+/** 事件钩子 */
+config('event', [
+    'after_init' => function () {
+    },
+    'before_router' => function () {
+    },
+    'after_router' => function () {
+    },
+    'before_authority' => function () {
+    },
+    'after_authority' => function () {
+    },
+    'before_action' => function () {
+    },
+    'after_action' => function () {
+    },
+    'before_model' => function(){
+
+    },
+    'after_model' => function(){
+
+    },
+    'before_hosp' => function(){
+
+    },
+    'after_hosp' => function(){
+
+    },
+    'before_sql' => function () {
+    },
+    'after_sql' => function () {
+    },
+    'before_complete' => function ($data) {
+    }
+]);
+/** 日志钩子 */
+config('log_hook', [
     /**
      * 执行于App初始化之前
      */
-    'initialize' => function () {
+    'init' => function () {
 //        //SESSION会话切换
 //        $sessionId = input('PHPSESSID');
 //        if (!empty($sessionId)) {
@@ -325,45 +350,38 @@ config('hook', [
      * 执行于路由解析前
      * @var $router Router
      */
-    'router' => function (Router $router) {
+    'route' => function ($action) {
     },
     /**
      * 路由权限拦截结果
      * @var $router Router 当前路由
-     * @var $userId mixed|null 当前登录用户，null说明未登录
-     * @var $userAuth array 用户权限
      * @var $result bool 拦截结果
      */
-    'authority' => function (Router $router, ?string $userId, array $userAuth, bool $result) {
+    'authority' => function ($action, $result) {
     },
     /**
      * 执行控制器方法时自动调用
-     * @var $name string 控制器名
-     * @var $request array 入参信息
-     * @var $response mixed 出参结果
+     * @var $action string 行为名
+     * @var $params array 入参
+     * @var $result mixed 出参
      */
-    'controller' => function ($name, $request, $response) {
+    'action' => function ($action, $params, $result) {
     },
     /**
      * 执行服务函数时自动调用
-     * @var $name string 服务名
-     * @var $request array 入参信息
-     * @var $response mixed 出参结果
+     * @var $action string 模型方法
+     * @var $params array 入参信息
+     * @var $result mixed 出参结果
      */
-    'service' => function ($name, $request, $response) {
+    'model' => function ($action, $params, $result) {
     },
     /**
-     * 执行dao函数时调用
-     * @var $name string DAO名
-     * @var $request array 入参信息
-     * @var $response mixed 出参结果
+     * 执行HOSP执行器钩子
+     * @var $express string 表达式
+     * @var $params array 入参
+     * @var $result mixed 出参
      */
-    'dao' => function ($name, $request, $response) {
-    },
-    /**
-     * 执行apino执行器钩子
-     */
-    'apino' => function ($name, $request, $response) {
+    'hosp' => function ($express, $params, $result) {
     },
     /**
      * 执行sql时调用
@@ -371,16 +389,11 @@ config('hook', [
      */
     'sql' => function (string $sql) {
     },
-    /**
-     * 全部完成后调用
-     * @var Response mixed 输出结果
-     */
-    'complete' => function ($response) {
+    /** 全部完成后调用 */
+    'complete' => function ($data) {
     },
 ]);
-/**
- * php注册处理器
- */
+/** php注册处理器 */
 config('handler', [
     'set_exception_handler' => function ($e) {
     },
@@ -392,26 +405,219 @@ config('handler', [
     'sms_sender' => function ($args) {
     }
 ]);
-/**
- * 用户手动引入文件
- */
-config('require_file', [
-]);
+
+/** 框架执行 */
+run();
+
+
+
+/** 工具 */
+
+/** 配置检查器 */
+function config_checker()
+{
+
+}
 
 /**
- * 钩子
+ * @notes 控制器方法（注册|调用）
+ * @param $express
+ * @param array $params
+ * @return void|mixed
+ */
+function action($express, $params = [])
+{
+
+        if (is_callable($params)) {
+            config("action.{$express}", $params);
+        } else {
+            try {
+                callback('event.before_action');
+
+                $params = array_merge(input(), is_array($params) ? $params : []);
+                $callback = config("action.$express");
+                $result = is_callable($callback) ? $callback($params) : model($express, $params);
+
+                callback('event.after_action');
+
+                return $result;
+            }catch (Exception $e){
+                return false;
+            }
+        }
+}
+
+/**
+ * 模型方法(调用|注册)
+ * @param $express
+ * @param array|callable $params
+ * @return mixed|void
+ */
+function model($express, $params = [])
+{
+
+}
+
+/**
+ * 校验器
  * Created by PhpStorm.
- * @param $name
- * @param $args
- * @throws ReflectionException
+ * @param $url
+ * @param $params
+ * @return array
  * @author QiuMinMin
- * Date: 2020/8/1 19:58
+ * Date: 2020/6/1 16:17
+ */
+function validate(string $url, array $params)
+{
+    $data = config("validate.$url");
+
+    if (!empty($data)) {
+        foreach ($data as $name => $rules) {
+            //获取设定的和法值
+            $values = array_diff_key($rules, VALIDATE_TYPE_ARRAY);
+
+            if (!isset($params[$name]) && in_array(REQ, $rules)) {
+                return Result::error($name . '参数是必填的');
+            } else {
+                if (count($values) > 0 && !in_array($params[$name], $values)) {
+                    return Result::error($name . '参数值非法');
+                } elseif (isset($params[$name])) {
+                    $exp = '/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/';
+
+                    $result = check([
+                        [intval($params[$name]) != $params[$name] && in_array('int', $rules), '整数'],
+                        [!is_numeric($params[$name]) && in_array('float', $rules), '小数'],
+                        [preg_match('/^1\d{10}$/', $params[$name]) && in_array('mobile', $rules), '手机号'],
+                        [preg_match($exp, $params[$name]) && in_array('email', $rules), '邮箱'],
+                    ]);
+                    if ($result !== true) {
+                        return Result::error($name . '参数必须是' . $result);
+                    }
+                }
+            }
+        }
+    }
+
+    return Result::success($params);
+}
+
+/**
+ * 综合打印
+ * @param $data
+ * @param bool $return
+ * @return string|void
+ */
+function dump($data, $return = false)
+{
+    if (gettype($data) == 'object') {
+        return var_export($data, $return);
+    } else {
+        $data = json_encode($data, JSON_UNESCAPED_UNICODE);
+        if ($return) {
+            return $data;
+        } else {
+            echo $data;
+        }
+    }
+}
+
+/** 日志
+ * @param $content mixed 日志内容
+ * @param $filename string 文件名
+ */
+function log($content, string $filename)
+{
+    if (!defined('LOG_ID')) {
+        $uid = uniqid("", true);
+        if (!empty($uid) && !isset($_SERVER)) {
+            $data = '';
+            $data .= $_SERVER['REQUEST_TIME'];
+            $data .= isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+            $data .= isset($_SERVER['LOCAL_ADDR']) ? $_SERVER['LOCAL_ADDR'] : '';
+            $data .= isset($_SERVER['LOCAL_PORT']) ? $_SERVER['LOCAL_PORT'] : '';
+            $data .= isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : '';
+            $data .= isset($_SERVER['REMOTE_PORT']) ? $_SERVER['REMOTE_PORT'] : '';
+            $hash = strtoupper(hash('ripemd128', $uid . md5($data)));
+            $logId =
+                substr($hash, 0, 8) .
+                '-' .
+                substr($hash, 8, 4) .
+                '-' .
+                substr($hash, 12, 4) .
+                '-' .
+                substr($hash, 16, 4) .
+                '-' .
+                substr($hash, 20, 12);
+        } else {
+            $logId = md5(strval(microtime() . rand(0, 9999)));
+        }
+        define('LOG_ID', $logId);
+    }
+    if (!defined('LOG_PATH')) {
+        $logPath = ROOT_PATH . DS . 'log' . DS;
+
+        //加入时间目录结构
+        $logPath .= sprintf(
+            '%s' . DS . '%s' . DS . '%s' . DS,
+            date('Y', TIME),
+            date('m', TIME),
+            date('d', TIME)
+        );
+        define('LOG_PATH', $logPath);
+    }
+    $logPath = LOG_PATH;
+
+    //拆分文件名中的目录和实际文件名进行拼装
+    $temp = explode('/', $filename);
+    if (count($temp) > 0) {
+        $filename = array_pop($temp);
+        if (count($temp) > 0) {
+            $dir = implode('/', $temp);
+            $logPath .= $dir . '/';
+        }
+    }
+
+
+    if (!is_dir($logPath)) {
+        mkdir($logPath, 0777, true);
+    }
+
+    $logFile = $logPath . (($filename ? $filename : 'event') . '.log');
+
+    $file = fopen($logFile, 'a');
+    fwrite($file, date('Y-m-d H:i:s', time()) . "\n" . 'ID: ' . LOG_ID . "\n" . $content . "\n");
+    fclose($file);
+}
+
+/**
+ * 钩子调用和注册
+ * @param $name
+ * @param $args callback|array
+ * @throws ReflectionException
  */
 function hook($name, $args = [])
 {
-    $function = config("hook.{$name}");
-    $rf = new ReflectionFunction($function);
-    $rf->invokeArgs($args);
+    if (is_callable($args)) {
+        config("hook.{$name}", $args);
+    } else {
+        $function = config("hook.{$name}");
+        $rf = new ReflectionFunction($function);
+        $rf->invokeArgs($args);
+    }
+}
+
+/**
+ * @notes 函数调用函数
+ * @param $name string 函数配置名
+ * @param array $args
+ */
+function callback(string $name, $args = [])
+{
+    try {
+        $reflectFunction = new ReflectionFunction(config($name));
+        $reflectFunction->invokeArgs($args);
+    } catch (ReflectionException $e) {
+    }
 }
 
 /**
@@ -495,6 +701,379 @@ function session($name = null, $value = '')
     }
 }
 
+
+/** 数据库函数 */
+
+/**
+ * @notes 表达式解析器
+ * @param string $express
+ * @param array $params
+ * @return mixed
+ */
+function hosp(string $express, $params = [])
+{
+
+    callback('event.before_hosp');
+
+    $result = hosp_exec($express, $params);
+
+    callback('event.after_hosp');
+
+    return $result;
+}
+
+function hosp_exec()
+{
+
+}
+
+function hosp_select()
+{
+
+}
+
+function hosp_update()
+{
+
+}
+
+function hosp_insert()
+{
+
+}
+
+function hosp_delete()
+{
+
+}
+
+function mysql_select()
+{
+    $result = $this->getTableFalseDeleteField();
+    if ($result) {
+        $this->where .= " AND {$result[0]} = {$result[1]} ";
+    }
+
+    return sprintf(
+        'SELECT %s FROM `%s` WHERE 1=1 %s',
+        $fields,
+        $this->trueTableName,
+        $this->where
+    );
+}
+
+function mysql_count()
+{
+    $result = $this->getTableFalseDeleteField();
+    if ($result) {
+        $this->where .= " AND {$result[0]} = {$result[1]} ";
+    }
+
+    return sprintf(
+        'SELECT COUNT(*) as `count` as `count` FROM `%s` WHERE 1=1 %s',
+        $this->trueTableName,
+        $this->where
+    );
+}
+
+function mysql_column()
+{
+
+}
+
+function mysql_delete()
+{
+    if ($this->trueDelete) {
+        return sprintf('DELETE FROM %s WHERE 1=1 %s', $this->trueTableName, $this->where);
+    } else {
+        $result = $this->getTableFalseDeleteField();
+        if ($result) {
+            return sprintf('UPDATE %s SET `%s` = "%s" WHERE 1=1 %s', $this->trueTableName, $result[0],
+                $result[1], $this->where);
+        } else {
+            return sprintf('DELETE FROM %s WHERE 1=1 %s', $this->trueTableName, $this->where);
+        }
+    }
+}
+
+function mysql_update()
+{
+    $set = $this->autoTimestampWithUpdate($set, false);
+
+    $sql = "UPDATE `{$this->trueTableName}` SET ";
+    foreach ($set as $k => $v) {
+        list($space, $v) = explode(SQL_RAW_PREFIX, $v);
+        if (empty($space)) {
+            $sql .= " `$k` = $v,";
+        } else {
+            $sql .= " `$k` = '$space',";
+        }
+    }
+    if (substr($sql, -1, 1) == ',') {
+        $sql = substr($sql, 0, strlen($sql) - 1);
+    }
+    return $sql . " WHERE 1=1 " . $this->where;
+}
+
+function mysql_insert($data)
+{
+    //自动插入时间戳
+    $data = $this->autoTimestampWithUpdate($data, true);
+    //自动补全表字段
+    $data = $this->autoCompleteInsert($data);
+
+    $sql = "INSERT `{$this->trueTableName}`(%s) VALUES(%s)";
+    $fields = "";
+    $values = "";
+
+    foreach ($data as $k => $v) {
+        $fields .= "`$k`,";
+        $values .= "'$v',";
+    }
+    $fields = substr($fields, 0, strlen($fields) - 1);
+    $values = substr($values, 0, strlen($values) - 1);
+    return sprintf($sql, $fields, $values);
+}
+
+function mysql_insert_all($array)
+{
+    array_map(function ($data) {
+        mysql_insert($data);
+    }, $array);
+}
+
+/**
+ * @notes 查单
+ * @param $id
+ * @param $field
+ * @param $pk
+ * @author EdwardCho
+ */
+function mysql_get($id, $field, $pk)
+{
+
+}
+
+function mysql_field()
+{
+    if (empty($field)) {
+        throw new Exception('getField的入参不能为空');
+    }
+
+    $result = $this->getTableFalseDeleteField();
+    if ($result) {
+        $this->where .= " AND {$result[0]} = {$result[1]} ";
+    }
+
+    return sprintf(
+        'SELECT %s FROM `%s` WHERE 1=1 %s %s',
+        $field,
+        $this->trueTableName,
+        $this->where,
+        $multi ? '' : 'LIMIT 1'
+    );
+}
+
+/**
+ * @notes 执行SQL语句
+ * @param $sql
+ * @return array|int
+ */
+function mysql_exec($sql)
+{
+
+    try {
+        $this->connect();
+
+        $result = mysql()->prepare($sql);
+
+        $result->execute();
+
+        $errorInfo = $result->errorInfo();
+
+        if ($errorInfo[2] != null) {
+            error($errorInfo[2]);
+        }
+
+        $result = stripos($this->sql, 'select')
+            ? $result->fetchAll(PDO::FETCH_ASSOC)
+            : $result->rowCount();
+
+        //钩子
+        hook('sql', [
+            'sql' => $this->sql
+        ]);
+
+        //执行日志
+        log('run true :' . $this->sql, 'sql');
+
+    } catch (Exception $e) {
+        log('run false :' . $this->sql, 'sql');
+        error($e->getMessage());
+        return false;
+    }
+
+    return $result;
+}
+
+/**
+ * @notes 获取PDO实例
+ * @return PDO
+ * @author EdwardCho
+ */
+function mysql()
+{
+    if (!defined('PDO_MYSQL')) {
+        //mysql连接
+        $dsn = sprintf("%s:host=%s;port=%s;dbname=%s",
+            $this->type, $this->host,
+            $this->port, $this->dbname
+        );
+        $pdo = new PDO($dsn, $this->username, $this->password);
+        //编码
+        $pdo->exec(sprintf("set names %s", $this->charset));
+        //持久化连接
+        $pdo::ATTR_PERSISTENT;
+        define('PDO_MYSQL', $pdo);
+    }
+    return PDO_MYSQL;
+}
+
+
+/** 入参工具 */
+
+/**
+ * 获取入参
+ * @param $name
+ * @param null $default
+ * @return mixed|null
+ */
+function input($name = null, $default = null)
+{
+    //懒加载，使用到入参信息才会去获取
+    if (!defined('REQUEST_PARAMS')) {
+        $url = $_SERVER['REQUEST_URI'];
+
+        //拿到URL中的入参信息
+        $index = stripos($url, "?");
+        $index = $index > 0 ? $index + 1 : strlen($url);
+        $string = substr($url, $index);
+        $urlParams = [];
+        foreach (explode("&", $string) as $item) {
+            list($name, $value) = explode("=", $item);
+            if (isset($name) && isset($value)) {
+                $urlParams[$name] = $value;
+            }
+        }
+
+        //入参参数优先级 json > post > get > urlParams(url中的参数，处理加密url中没有被php解析到的参数)
+        $json = json_decode(file_get_contents("php://input"), true);
+        $json = empty($json) ? [] : $json;
+        define('REQUEST_PARAMS', array_merge($urlParams, $_GET, $_POST, $json));
+    }
+
+    if ($name == null) {
+        return $this->params;
+    }
+    return isset(REQUEST_PARAMS[$name]) ? REQUEST_PARAMS[$name] : $default;
+}
+
+/**
+ * @return bool
+ * @author EdwardCho
+ */
+function is_post()
+{
+    return $_SERVER["REQUEST_METHOD"] == "POST";
+}
+
+/**
+ * @return bool
+ * @author EdwardCho
+ */
+function is_get()
+{
+    return $_SERVER['REQUEST_METHOD'] == "GET";
+}
+
+/**
+ * @notes 上传文件保存
+ * @param $name string 文件名
+ * @param $destination string 目标文件路径
+ * @return bool
+ * @author EdwardCho
+ */
+function file_move($name, string $destination)
+{
+    $temp = explode("/", $destination);
+    array_pop($temp);
+    $path = implode("/", $temp);
+
+    if (!is_dir($path)) {
+        mkdir($path, 0777, true);
+    }
+    $res = move_uploaded_file($this->tmpName, $destination);
+    if (!$res) {
+        $this->error = "系统权限不足，无法上传文件";
+        return false;
+    }
+    return $res;
+}
+
+/**
+ * @notes 上传文件有效性校验
+ * @param $name string 文件名
+ * @param array $extArray
+ * @param null $maxSize
+ * @return bool
+ * @author EdwardCho
+ */
+function file_valid(string $name, $extArray = [], $maxSize = null)
+{
+    $temp = explode(".", $name);
+    $ext = array_pop($temp);
+    if (!in_array($ext, $extArray)) {
+        $this->error = "上传文件的格式为{$ext}, 非合法格式：" . implode(",", $extArray);
+        return false;
+    }
+    if ($this->size > $maxSize) {
+        $this->error = "上传文件大小为{$this->size}，已超过$maxSize";
+        return false;
+    }
+    return true;
+}
+
+/** 路由解析 */
+function route()
+{
+
+}
+
+/** 出参工具 */
+
+/**
+ * @notes 输出JSON对象
+ * @param $code
+ * @param $data
+ * @param $msg
+ * @throws ReflectionException
+ */
+function json($code = 0, $data = [], $msg = '')
+{
+    $object = [
+        'code' => $code,
+        'data' => $data,
+        'msg' => $msg
+    ];
+    //日志钩子
+    hook('complete', [
+        'response' => $object
+    ]);
+
+    echo json_encode($object, JSON_UNESCAPED_UNICODE);
+    die();
+}
+
 /**
  * 错误处理
  * Created by PhpStorm.
@@ -504,1003 +1083,530 @@ function session($name = null, $value = '')
  */
 function error(string $content)
 {
-    Log::file($content, 'error', true);
+    log($content, 'error');
     Response::error($content);
     die();
 }
 
-/**
- * 执行器
- * Created by PhpStorm.
- * @param string $expression
- * @param array $params
- * @return array|int|mixed|null
- * @throws ReflectionException
- * @author QiuMinMin
- * Date: 2020/6/27 14:37
- */
-function apino(string $expression, $params = [])
-{
-    list($temp, $controller, $action) = explode('/', $expression);
-    unset($temp);
 
-    $response = model($controller)->apino($action, $params);
-
-    hook(__FUNCTION__, [
-        'name' => $expression,
-        'request' => $params,
-        'response' => $response
-    ]);
-    return $response;
-}
+/** API操作 */
 
 /**
- * 表达式执行器，用户设定值优先于入参值
- * Created by PhpStorm.
- * @param string $expression
- * @param mixed ...$params
- * @return array|int|mixed|null
- * @throws ReflectionException
- * @author QiuMinMin
- * Date: 2020/5/17 7:00
+ * @notes 内置API拦截器
+ * @param $controller
+ * @param $action
+ * @return false|null
  */
-function controller(string $expression, array $params = [])
+function api_interceptor($controller, $action)
 {
-    $params = array_merge(Request::instance()->param(), Is::array($params) ? $params : []);
-    $closure = config("controller.$expression");
-    $response = Is::closure($closure) ? $closure($params) : service($expression, $params);
-    //日志钩子
-    hook(__FUNCTION__, [
-        'name' => $expression,
-        'request' => $params,
-        'response' => $response
-    ]);
-    return $response;
-}
+    if (empty($controller) || empty($action)) {
+        //拦截失败
+        return false;
+    }
+    $handlerClass = ucfirst($controller) . 'ApiHandler';
+    $config = config('api.' . $controller);
+    if (class_exists($handlerClass) || $config) {
+        $config = $config[$action];
 
-/**
- * 服务者函数(调用服务里的方法)
- * Created by PhpStorm.
- * @param string $expression
- * @param $params array 指定参数
- * @return mixed
- * @throws ReflectionException
- * @author QiuMinMin
- * Date: 2020/5/19 8:55
- */
-function service(string $expression, array $params = [])
-{
-    $closure = config("service.$expression");
-    $response = Is::closure($closure) ? $closure($params) : dao($expression, $params);
-    //日志钩子
-    hook(__FUNCTION__, [
-        'name' => $expression,
-        'request' => $params,
-        'response' => $response
-    ]);
-    return $response;
-}
-
-/**
- * 持久化层
- * Created by PhpStorm.
- * @param $expression string
- * @param $params array
- * @return mixed
- * @throws ReflectionException
- * @author QiuMinMin
- * Date: 2020/5/22 15:05
- */
-function dao(string $expression, array $params = [])
-{
-    $value = config("dao.$expression");
-
-    if (empty($value)) {
-        $response = apino($expression, $params);
-    } else {
-        //直接SQL语句
-        //替换SQL表达式里的动态属性值
-        foreach ($params as $k => $v) {
-            $value = str_ireplace("#{$k}#", $v, $value);
+        //场景专用配置
+        $sence = Request::instance()->param('sence');
+        if (!empty($config[$sence])) {
+            $config = $config[$sence];
         }
-        //直接执行sql语句
-        $response = model()->sql($value)->execute();
-    }
-
-    //日志钩子
-    hook(__FUNCTION__, [
-        'name' => $expression,
-        'request' => $params,
-        'response' => $response
-    ]);
-
-    return $response;
-}
-
-/**
- * 模型函数
- * Created by PhpStorm.
- * @param string|null $table
- * @return Model
- * @author QiuMinMin
- * Date: 2020/6/27 20:48
- */
-function model(string $table = null)
-{
-    return new Model($table);
-}
-
-/**
- * 综合打印
- * Created by PhpStorm.
- * @param $data
- * @author QiuMinMin
- * Date: 2020/6/1 11:40
- */
-function dump($data)
-{
-    if (gettype($data) == 'object') {
-        var_export($data);
-    } else {
-        echo json_encode($data, JSON_UNESCAPED_UNICODE);
-    }
-}
-
-/**
- * sql拼装类功能入口
- * Created by PhpStorm.
- * @param null $tableName
- * @return Sql
- * @author QiuMinMin
- * Date: 2020/7/30 23:51
- */
-function sql($tableName = null)
-{
-    return new Sql($tableName);
-}
-
-/**
- * 校验参数
- * Created by PhpStorm.
- * @param array $array
- * @return bool|mixed
- * @author QiuMinMin
- * Date: 2020/6/1 16:18
- * @example [[bool, errorInfo],[]...]
- */
-function check(array $array)
-{
-    if (!count($array)) {
-        return true;
-    }
-    foreach ($array as $item) {
-        if ($item[0]) {
-            return $item[1];
+        $handler = new $handlerClass();
+        if (method_exists($handler, $action)) {
+            return $handler->$action($config);
         }
     }
-    return true;
+    return null;
 }
 
 /**
- * 入参辅助函数
- * Created by PhpStorm.
- * @param null $name
- * @param null $default
- * @return array|mixed|null
- * @author QiuMinMin
- * Date: 2020/6/19 0:09
- */
-function input($name = null, $default = null)
-{
-    return Request::instance()->param($name, $default);
-}
-
-/**
- * 校验器
- * Created by PhpStorm.
- * @param $url
- * @param $params
+ * @notes API TOKEN校验
+ * @param Router $router
  * @return array
- * @author QiuMinMin
- * Date: 2020/6/1 16:17
  */
-function validate(string $url, array $params)
+function api_token(Router $router)
 {
-    $data = config("validate.$url");
-
-    if (!empty($data)) {
-        foreach ($data as $name => $rules) {
-            //获取设定的和法值
-            $values = array_diff_key($rules, VALIDATE_TYPE_ARRAY);
-
-            if (!isset($params[$name]) && in_array(REQ, $rules)) {
-                return Result::error($name . '参数是必填的');
-            } else {
-                if (count($values) > 0 && !in_array($params[$name], $values)) {
-                    return Result::error($name . '参数值非法');
-                } elseif (isset($params[$name])) {
-                    $exp = '/^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/';
-
-                    $result = check([
-                        [intval($params[$name]) != $params[$name] && in_array('int', $rules), '整数'],
-                        [!is_numeric($params[$name]) && in_array('float', $rules), '小数'],
-                        [preg_match('/^1\d{10}$/', $params[$name]) && in_array('mobile', $rules), '手机号'],
-                        [preg_match($exp, $params[$name]) && in_array('email', $rules), '邮箱'],
-                    ]);
-                    if ($result !== true) {
-                        return Result::error($name . '参数必须是' . $result);
-                    }
-                }
-            }
-        }
+    if ($router->controller() == 'util' && $router->action() == 'token') {
+        return Result::success();
     }
 
-    return Result::success($params);
+    $c = config('api.util.token');
+    if (!$c['switch']) {
+        return Result::success();
+    }
+
+    if (!input($c['param'])) {
+        return Result::error('缺少TOKEN值');
+    }
+
+    if (!session('token.value')) {
+        return Result::error('请先获取TOKEN值');
+    }
+    if (session('token.value') != input($c['param'])) {
+        return Result::error('TOKEN值错误');
+    }
+
+    return Result::success();
 }
 
 /**
- * 入参转换器
- * Created by PhpStorm.
- * @param $url
- * @param $params
- * @return mixed
- * @author QiuMinMin
- * Date: 2020/6/1 13:58
+ * @notes 系统预设API处理器
+ * @param $api
+ * @param array $vars
+ * @return array|bool
+ * @author EdwardCho
  */
-function inputConverter(string $url, array $params)
+function api_handler($api, $vars = [])
 {
-    $closure = config("input_converter.$url");
-    return Is::closure($closure) ? $closure($params) : $params;
-}
-
-/**
- * 日志函数
- * Created by PhpStorm.
- * @param string $content
- * @param string $fileName
- * @param bool $dailyWrite
- * @param bool $writeTime
- * @author QiuMinMin
- * Date: 2020/5/30 16:06
- */
-function log_file(string $content, string $fileName, bool $dailyWrite = true, bool $writeTime = true)
-{
-    Log::file($content, $fileName, $dailyWrite, $writeTime);
-}
-
-/**
- * 内嵌类
- */
-class_alias(Embed::class, 'Em');
-
-//只有api请求才会执行程序
-IS_AJAX && Core::run();
-
-/**
- * 系统初始化函数，请勿随意修改初始化函数内容
- */
-function frameInitialize()
-{
-    define('APINO_START', microtime(true));
-
-    //有使用composer则进行加载composer加载工具
-    if(file_exists(__DIR__ . '/composer.json')){
-        if(file_exists(__DIR__ . '/vendor/autoload.php')){
-            require_once __DIR__ . '/vendor/autoload.php';
-        }
-    }
-
-    /**
-     * 定义系统常量
-     * Created by PhpStorm.
-     * @author QiuMinMin
-     * Date: 2020/8/3 0:46
-     */
-    function defines()
-    {
-        //关闭严格模式
-        ini_set("display_errors", 0);
-
-        //定义常量
-        //判断是否为api请求(是否是第一个引入文件)
-        define('IS_AJAX', get_required_files()[0] == __FILE__ ? 1 : 0);
-
-        //简化系统内置文件路径分隔符
-        define("DS", DIRECTORY_SEPARATOR);
-
-        //路径
-        define("ROOT_PATH", $_SERVER['DOCUMENT_ROOT']);
-        define("UPLOAD_PATH", ROOT_PATH . "/upload");
-
-        define("LOG_PATH", ROOT_PATH . "/log");
-
-        //validate正则类型
-        define('REQ', 'require');
-        define('INT', 'int');
-        define('FLOAT', 'float');
-        define('MOBILE', 'mobile');
-        define('EMAIL', 'email');
-        define('ARR', 'array');
-
-        //validate支持的所有正则
-        define('VALIDATE_TYPE_ARRAY', [REQ, INT, FLOAT, MOBILE, EMAIL, ARR]);
-
-        //系统默认角色
-        //访客(未登录权限)
-        define('GUEST', 'guest');
-        //超级管理员(一般拥有所有权限)
-        define('ADMIN', 'admin');
-
-
-        //真实SQL前缀
-        define('SQL_RAW_PREFIX', random_bytes(10));
-
-        //获取权限模式
-        define('CONFIG', 'config');
-        define('DATABASE', 'database');
-        define('NONE', 'none');
-
-        //表关联常量
-        define('ONE_TO_ONE', 11); //一对一
-        define('ONE_TO_MANY', 13); //一对多
-    }
-
-    defines();
-
-    /**
-     * 日志驱动
-     * Class Log
-     */
-    class Log
-    {
-
-        /**
-         * 日志文件夹
-         * @var mixed
-         */
-        protected static $dir = LOG_PATH;
-
-        /**
-         * 日志驱动
-         * @param $str
-         * @param string $file_name
-         * @param bool $daily_write
-         * @param bool $writeTime
-         */
-        public static function file($str, $file_name, $daily_write = false, $writeTime = true)
-        {
-            $file_path = self::$dir . "/";
-            if (!is_dir($file_path)) {
-                mkdir($file_path, 0777, true);
+    switch ($api) {
+        case API_UPLOAD:
+            $exts = [
+                'php' => ['php'],
+                'image' => ['jpg', 'png', 'jpeg', 'ico', 'gif'],
+            ];
+            $ext = $exts[$c['sence']];
+            $param = $c['fileParam'];
+            $maxSize = $c['maxSize'];
+            $file = Request::instance()->file($param);
+            if (!$file->valid($ext, $maxSize)) {
+                return Result::error($file->getError());
             }
-            $file_path .= $file_name ? $file_name . ($daily_write ? '.' . date(
-                        'Y-m-d',
-                        time()
-                    ) : '') . '.log' : 'event.' . date('Y-m-d', time()) . '.log';
-            $file = fopen($file_path, 'a');
-            if ($writeTime) {
-                fwrite($file, date('Y-m-d H:i:s', time()) . "\n" . $str . "\n");
-            } else {
-                fwrite($file, $str . "\n");
+            $dir = $c['dir'] ?: '/upload';
+
+            $filename = $dir . '/' . $file->getFileName();
+            if (!$file->move(ROOT_PATH . $filename)) {
+                return Result::error($file->getError());
             }
-            fclose($file);
-        }
-    }
+            return Result::success([
+                'url' => $filename
+            ]);
+        case API_VERIFY_CODE:
+            $sence = input('sence');
 
-    /**
-     * 出参包装特性
-     * Trait Result
-     */
-    trait Result
-    {
-        public static function success($data = [])
-        {
-            return [true, $data];
-        }
-
-        public static function error($msg = '')
-        {
-            return [false, $msg];
-        }
-    }
-
-    /**
-     * 日志特性
-     */
-    trait LogTrait
-    {
-        /**
-         * 日志文件名
-         * @var string
-         */
-        protected $log_file = "log";
-
-        /**
-         * 错误处理函数，返回值只会是False
-         * @param $info string
-         * @param bool $daily_write
-         * @param bool $writeTime
-         */
-        protected function log_file($info, $daily_write = true, $writeTime = true)
-        {
-            Log::file($info, $this->log_file, $daily_write, $writeTime);
-        }
-
-    }
-
-    /**
-     * 错误特性
-     * Trait ErrorTrait
-     */
-    trait ErrorTrait
-    {
-        protected $error;
-
-        public function error($error = null)
-        {
-            if ($error === null) {
-                return $this->error;
+            /**
+             * @var $verifyCode VerifyCode
+             */
+            $verifyCode = config("api.util.verifyCode.{$sence}");
+            if (empty($verifyCode)) {
+                return Result::error('无该场景的验证码');
             }
 
-            $this->error = $error;
-            return false;
-        }
-    }
+            $result = $verifyCode->builder();
 
-    /**
-     * 邮箱驱动
-     * Class Smtp
-     */
-    class Smtp
-    {
-        var $smtp_port;
-        var $time_out;
-        var $host_name;
-        var $log_file;
-        var $relay_host;
-        var $debug;
-        var $auth;
-        var $user;
-        var $pass;
-        var $sock;
-
-        function __construct($relay_host, $smtp_port, $auth, $user, $pass)
-        {
-            $this->debug = false;
-            $this->smtp_port = $smtp_port;
-            $this->relay_host = $relay_host;
-            $this->time_out = 3600;
-            $this->auth = $auth;
-            $this->user = $user;
-            $this->pass = $pass;
-            $this->host_name = "localhost";
-            $this->log_file = "";
-            $this->sock = false;
-        }
-
-        function sendmail($to, $from, $subject, $body, $mailtype, $cc = "", $bcc = "", $additional_headers = "")
-        {
-            $mail_from = $this->get_address($this->strip_comment($from));
-            $body = pereg_replace("(^|(\r\n))(\.)", "\1.\3", $body);
-            $header = "MIME-Version:1.0\r\n";
-            if ($mailtype == "HTML") {
-                $header .= "Content-Type:text/html\r\n";
+            //如果有返回值判断为false则生成失败
+            if (!$result) {
+                return Result::error('获取验证码失败');
             }
-            $header .= "To: " . $to . "\r\n";
-            if ($cc != "") {
-                $header .= "Cc: " . $cc . "\r\n";
-            }
-            $header .= "From: $from<" . $from . ">\r\n";
-            $header .= "Subject: " . $subject . "\r\n";
-            $header .= $additional_headers;
-            $header .= "Date: " . date("r") . "\r\n";
-            $header .= "X-Mailer:By Redhat (PHP/" . phpversion() . ")\r\n";
-            list($msec, $sec) = explode(" ", microtime());
-            $header .= "Message-ID: <" . date("YmdHis", $sec) . "." . ($msec * 1000000) . "." . $mail_from . ">\r\n";
-            $TO = explode(",", $this->strip_comment($to));
-            if ($cc != "") {
-                $TO = array_merge($TO, explode(",", $this->strip_comment($cc)));
-            }
-            if ($bcc != "") {
-                $TO = array_merge($TO, explode(",", $this->strip_comment($bcc)));
-            }
-            $sent = true;
-            foreach ($TO as $rcpt_to) {
-                $rcpt_to = $this->get_address($rcpt_to);
-                if (!$this->smtp_sockopen($rcpt_to)) {
-                    $this->log_write("Error: Cannot send email to " . $rcpt_to . "\n");
-                    $sent = false;
-                    continue;
-                }
-                if ($this->smtp_send($this->host_name, $mail_from, $rcpt_to, $header, $body)) {
-                    $this->log_write("E-mail has been sent to <" . $rcpt_to . ">\n");
-                } else {
-                    $this->log_write("Error: Cannot send email to <" . $rcpt_to . ">\n");
-                    $sent = false;
-                }
-                fclose($this->sock);
-                $this->log_write("Disconnected from remote host\n");
-            }
-            return $sent;
-        }
+            return Result::success([]);
+        case API_TOKEN:
+            $now = time();
 
-        function smtp_send($helo, $from, $to, $header, $body = "")
-        {
-            if (!$this->smtp_putcmd("HELO", $helo)) {
-                return $this->smtp_error("sending HELO command");
+            if (!$c['switch']) {
+                return Result::error('当前已关闭token验证');
             }
-            if ($this->auth) {
-                if (!$this->smtp_putcmd("AUTH LOGIN", base64_encode($this->user))) {
-                    return $this->smtp_error("sending HELO command");
-                }
-                if (!$this->smtp_putcmd("", base64_encode($this->pass))) {
-                    return $this->smtp_error("sending HELO command");
-                }
+
+            $lastTime = session('token.last_time') ?: 0;
+            $lastToken = session('token.value');
+            if ($now - $lastTime > $c['interval']) {
+                //超过时间可重新生成新TOKEN
+                $lastToken = md5(base64_encode(substr($now, 0, 8)));
+                session('token.value', $lastToken);
+                session('token.last_time', $now);
             }
-            if (!$this->smtp_putcmd("MAIL", "FROM:<" . $from . ">")) {
-                return $this->smtp_error("sending MAIL FROM command");
+
+            if (!$lastToken) {
+                return Result::error('当前获取TOKEN频率过快');
             }
-            if (!$this->smtp_putcmd("RCPT", "TO:<" . $to . ">")) {
-                return $this->smtp_error("sending RCPT TO command");
+
+            return Result::success([
+                'token' => $lastToken
+            ]);
+        case API_REGISTER:
+            $username = input($c['username']);
+            $password = input($c['password']);
+            $confirmPassword = input($c['confirmPassword']);
+            $passwordEncode = $c['passwordEncode'];
+
+            $success = $c['success'];
+            $error = $c['error'];
+
+            if (empty($username)) {
+                return Result::error('账户名不能为空');
             }
-            if (!$this->smtp_putcmd("DATA")) {
-                return $this->smtp_error("sending DATA command");
+            if (empty($password)) {
+                return Result::error('密码不能为空');
             }
-            if (!$this->smtp_message($header, $body)) {
-                return $this->smtp_error("sending message");
+            if ($password != $confirmPassword) {
+                return Result::error('两次密码不一致');
             }
-            if (!$this->smtp_eom()) {
-                return $this->smtp_error("sending <CR><LF>.<CR><LF> [EOM]");
-            }
-            if (!$this->smtp_putcmd("QUIT")) {
-                return $this->smtp_error("sending QUIT command");
-            }
-            return true;
-        }
 
-        function smtp_sockopen($address)
-        {
-            if ($this->relay_host == "") {
-                return $this->smtp_sockopen_mx($address);
-            } else {
-                return $this->smtp_sockopen_relay();
-            }
-        }
-
-        function smtp_sockopen_relay()
-        {
-            $this->log_write("Trying to " . $this->relay_host . ":" . $this->smtp_port . "\n");
-            $this->sock = @fsockopen($this->relay_host, $this->smtp_port, $errno, $errstr, $this->time_out);
-            if (!($this->sock && $this->smtp_ok())) {
-                $this->log_write("Error: Cannot connenct to relay host " . $this->relay_host . "\n");
-                $this->log_write("Error: " . $errstr . " (" . $errno . ")\n");
-                return false;
-            }
-            $this->log_write("Connected to relay host " . $this->relay_host . "\n");
-            return true;
-        }
-
-        function smtp_sockopen_mx($address)
-        {
-            $domain = pereg_replace("^.+@([^@]+)$", "\1", $address);
-            if (!@getmxrr($domain, $MXHOSTS)) {
-                $this->log_write("Error: Cannot resolve MX \"" . $domain . "\"\n");
-                return false;
-            }
-            foreach ($MXHOSTS as $host) {
-                $this->log_write("Trying to " . $host . ":" . $this->smtp_port . "\n");
-                $this->sock = @fsockopen($host, $this->smtp_port, $errno, $errstr, $this->time_out);
-                if (!($this->sock && $this->smtp_ok())) {
-                    $this->log_write("Warning: Cannot connect to mx host " . $host . "\n");
-                    $this->log_write("Error: " . $errstr . " (" . $errno . ")\n");
-                    continue;
-                }
-                $this->log_write("Connected to mx host " . $host . "\n");
-                return true;
-            }
-            $this->log_write("Error: Cannot connect to any mx hosts (" . implode(", ", $MXHOSTS) . ")\n");
-            return false;
-        }
-
-        function smtp_message($header, $body)
-        {
-            fputs($this->sock, $header . "\r\n" . $body);
-            $this->smtp_debug("> " . str_replace("\r\n", "\n" . "> ", $header . "\n> " . $body . "\n> "));
-            return true;
-        }
-
-        function smtp_eom()
-        {
-            fputs($this->sock, "\r\n.\r\n");
-            $this->smtp_debug(". [EOM]\n");
-            return $this->smtp_ok();
-        }
-
-        function smtp_ok()
-        {
-            $response = str_replace("\r\n", "", fgets($this->sock, 512));
-            $this->smtp_debug($response . "\n");
-            if (!pereg("^[23]", $response)) {
-                fputs($this->sock, "QUIT\r\n");
-                fgets($this->sock, 512);
-                $this->log_write("Error: Remote host returned \"" . $response . "\"\n");
-                return false;
-            }
-            return true;
-        }
-
-        function smtp_putcmd($cmd, $arg = "")
-        {
-            if ($arg != "") {
-                if ($cmd == "") {
-                    $cmd = $arg;
-                } else {
-                    $cmd = $cmd . " " . $arg;
-                }
-            }
-            fputs($this->sock, $cmd . "\r\n");
-            $this->smtp_debug("> " . $cmd . "\n");
-            return $this->smtp_ok();
-        }
-
-        function smtp_error($string)
-        {
-            $this->log_write("Error: Error occurred while " . $string . ".\n");
-            return false;
-        }
-
-        function log_write($message)
-        {
-            $this->smtp_debug($message);
-            if ($this->log_file == "") {
-                return true;
-            }
-            $message = date("M d H:i:s ") . get_current_user() . "[" . getmypid() . "]: " . $message;
-            if (!@file_exists($this->log_file) || !($fp = @fopen($this->log_file, "a"))) {
-                $this->smtp_debug("Warning: Cannot open log file \"" . $this->log_file . "\"\n");
-                return false;
-            }
-            flock($fp, LOCK_EX);
-            fputs($fp, $message);
-            fclose($fp);
-            return true;
-        }
-
-        function strip_comment($address)
-        {
-            $comment = "\([^()]*\)";
-            while (preg_match($comment, $address)) {
-                $address = preg_replace($comment, "", $address);
-            }
-            return $address;
-        }
-
-        function get_address($address)
-        {
-            $address = preg_replace("([ \t\r\n])+", "", $address);
-            $address = preg_replace("^.*<(.+)>.*$", "\1", $address);
-            return $address;
-        }
-
-        function smtp_debug($message)
-        {
-            if ($this->debug) {
-                echo $message;
-            }
-        }
-    }
-
-    /**
-     * 请求信息封装类
-     * Class Request
-     */
-    class Request
-    {
-        private static $request = null;
-
-        /**
-         * @var array 入参属性列表
-         */
-        private $params = [];
-
-        private $loadParams = false;
-
-        private function __construct()
-        {
-        }
-
-        private function __clone()
-        {
-        }
-
-        public static function instance()
-        {
-            if (empty(self::$request)) {
-                self::$request = new self();
-            }
-            return self::$request;
-        }
-
-        public function isPost()
-        {
-            return $_SERVER["REQUEST_METHOD"] == "POST";
-        }
-
-        public function isGet()
-        {
-            return $_SERVER['REQUEST_METHOD'] == "GET";
-        }
-
-        /**
-         * 上传文件
-         * @param $name
-         * @param null $destination
-         * @return File
-         */
-        public function file($name, $destination = null)
-        {
-            $file = new File($name);
-            if ($destination) {
-                $file->move($destination);
-            }
-            return $file;
-        }
-
-        /**
-         * 获取入参
-         * @param $name
-         * @param null $default
-         * @return mixed|null
-         */
-        public function param($name = null, $default = null)
-        {
-            //懒加载，使用到入参信息才会去获取
-            $this->initParams();
-            if ($name == null) {
-                return $this->params;
-            }
-            return isset($this->params[$name]) ? $this->params[$name] : $default;
-        }
-
-        /**
-         * 初始化缓存汇总入参信息
-         */
-        private function initParams()
-        {
-            if ($this->loadParams) {
-                return;
-            }
-            $this->loadParams = true;
-
-            $url = $_SERVER['REQUEST_URI'];
-
-            //拿到URL中的入参信息
-            $index = stripos($url, "?");
-            $index = $index > 0 ? $index + 1 : strlen($url);
-            $string = substr($url, $index);
-            $urlParams = [];
-            foreach (explode("&", $string) as $item) {
-                list($name, $value) = explode("=", $item);
-                if (isset($name) && isset($value)) {
-                    $urlParams[$name] = $value;
+            //用户自定义安全校验
+            $safety = $c['safety'];
+            if (get_class($safety) == callback::class) {
+                list($result, $error) = $safety(input());
+                if (!$result) {
+                    return Result::error($error);
                 }
             }
 
-            //入参参数优先级 json > post > get > urlParams(url中的参数，处理加密url中没有被php解析到的参数)
-            $json = json_decode(file_get_contents("php://input"), true);
-            $json = empty($json) ? [] : $json;
-            unset($_GET['_url']);
-            $this->params = array_merge($urlParams, $_GET, $_POST, $json);
-        }
+            if (get_class($passwordEncode) == callback::class) {
+                $password = $passwordEncode($password);
+            }
+            $data = [];
+            $values = $c['values'];
+            if (get_class($values) == callback::class) {
+                $data = array_merge($data, $values());
+            }
 
-        /**
-         * @param $name string 魔术方法，自动获取入参值
-         * @return array|mixed|null
-         */
-        public function __get($name)
-        {
-            return $this->param($name);
-        }
+            $data[$c['username']] = $username;
+            $data[$c['password']] = $password;
 
-        /**
-         * 不存在的方法自动获取入参信息，并且传入的一个参数为无入参时的默认参数
-         * @param $name
-         * @param $arguments
-         * @return array|mixed|null
-         */
-        public function __call($name, $arguments)
-        {
-            return $this->param($name, $arguments[0]);
-        }
+            list($table, $pk) = explode('.', $c['id']);
 
-    }
+            $result = model($table)->insert($data);
+            if ($result == 0) {
+                //失败回调
+                $error($username);
+                return Result::error('注册失败');
+            }
 
-    /**
-     * 出参封装类
-     * Class Response
-     */
-    class Response
-    {
-        private static function returnAjax($code, $data, $msg)
-        {
-            echo json_encode(
-                [
-                    'code' => $code,
-                    'data' => $data,
-                    'msg' => $msg
-                ],
-                JSON_UNESCAPED_UNICODE
-            );
-            die();
-        }
+            $user = model($table)
+                ->and($c['username'], $username)
+                ->get();
 
-        /**
-         * 发送相应内容
-         * @param $object mixed|array
-         */
-        public static function send($object = [])
-        {
-            //日志钩子
-            hook('complete', [
-                'response' => $object
+            //调用用户自定义得成功回调
+            $success($user);
+
+            return Result::success();
+        case API_LOGIN:
+            $appUserConfig = config('app.user');
+
+            $nameParam = $c['username'];
+            $passParam = $c['password'];
+            $passEncode = $c['passwordEncode'];
+            list($table, $field) = explode('.', $appUserConfig['id']);
+            $safety = $c['safety'];
+            $success = $c['success'];
+            $error = $c['error'];
+
+            //用户自定义校验
+            if (is_callable($safety)) {
+                $array = $safety(input());
+                if (Is::array($array) && !$array[0]) {
+                    return $array;
+                }
+            }
+
+
+            $name = input($nameParam);
+            if (!isset($name) || empty(trim($name))) {
+                return Result::error("登录账户名不能为空");
+            }
+
+            $pass = input($passParam);
+
+            //加密闭包
+            if (is_callable($passEncode)) {
+                $pass = $passEncode($pass) ?: $pass;
+            }
+
+            $user = dao("/$table/selectOneBy" . ucfirst($nameParam), [
+                $nameParam => $name
             ]);
 
-            self::returnAjax(0, $object, '');
-        }
+            if (!$user) {
+                //调用用户自定义失败回调
+                $error($name);
+                return Result::error('用户不存在');
+            }
 
-        public static function error($msg = '')
-        {
-            self::returnAjax(0, [], $msg);
-        }
+            if ($user[$passParam] !== $pass) {
+                return Result::error('密码错误');
+            }
+
+            //调用获取用户信息后的成功回调
+            $result = $success($user);
+            if (!empty($result)) {
+                $error($name);
+                return Result::error('用户不存在');
+            }
+
+            //储存用户ID
+            User::id($user[$field]);
+
+            return Result::success();
+        case API_LOGOUT:
+            return User::logout() ? Result::success() : Result::error();
+        case API_CHECK_LOGIN:
+            return !empty(User::id());
+
+    }
+}
+
+
+/** 验证码功能 */
+
+/**
+ * @notes 图片验证码
+ * @param $code
+ * @param $width
+ * @param $height
+ */
+function verify_code_image($code, $width, $height)
+{
+    //创建画布
+    $image = imagecreatetruecolor($width, $height);
+    //白色背景
+    $white = imagecolorallocate($image, 255, 255, 255);
+    //字体颜色
+    $font_color = imagecolorallocate(
+        $image,
+        rand(0, 255),
+        rand(0, 255),
+        rand(0, imagefill($image, 0, 0, $white))
+    );
+    //字体类型和大小
+    imagestring($image, 5, 10, 10, $code, $font_color);
+//    imagettftext($image, 24, 0, 5, 20, $font_color, "/.ttf", $_SESSION['system']['imgCode']);
+    //干扰线
+    for ($i = 0; $i < 80; $i++) {
+        $color = imagecolorallocate($image, rand(0, 255), rand(0, 255), rand(0, 255));
+        imagesetpixel($image, rand(0, $width), rand(0, $height), $color);
+    }
+    for ($i = 0; $i < 5; $i++) {
+        $color = imagecolorallocate($image, rand(0, 255), rand(0, 255), rand(0, 255));
+        imageline($image, rand(0, $width), rand(0, $height), rand(0, $width), rand(0, $height), $color);
+    }
+    ob_clean();
+    header("Content-type: image/png");
+    imagepng($image);
+    imagedestroy($image);
+}
+
+/**
+ * @notes 邮箱验证码
+ * @param $content
+ * @param $title
+ * @return bool
+ */
+function verify_code_email($content, $title)
+{
+    //内容模板替换#code#关键字
+    return config('handler.smtp_sender')(array_merge(config('smtp'), [
+        'title' => $title,
+        'content' => $content
+    ]));
+}
+
+/** 手机验证码
+ * @param $params array
+ * @return bool
+ */
+function verify_code_mobile($params = [])
+{
+    return config('handler.sms_sender')($params);
+}
+
+/**
+ * @notes 校验验证码
+ * @param $type
+ * @return array
+ */
+function verify_code_check($type)
+{
+    $sessCode = session('verifyCode.' . $type);
+    if (empty($sessCode)) {
+        return Result::error('请先获取验证码');
+    }
+    if (empty($code)) {
+        return Result::error('验证码不能为空');
+    }
+    if ($sessCode != $code) {
+        return Result::error('验证码不正确');
+    } else {
+        return Result::success();
+    }
+}
+
+
+/** 登录用户操作 */
+
+/**
+ * @notes ID
+ * @param string $id
+ * @return int|string|void
+ */
+function user_id($id = '')
+{
+    return session('user_id', $id);
+}
+
+/**
+ * @notes 角色
+ * @param string|int $role
+ * @return string|void
+ */
+function user_role($role = '')
+{
+    return session('user_role', $role);
+}
+
+/**
+ * @notes 权限
+ * @
+ * @param array|bool|mixed $authority
+ * @return array|bool|void
+ */
+function user_authority($authority = '')
+{
+    return session('user_authority', $authority);
+}
+
+/**
+ * @notes 登录
+ * @param $id
+ * @param null $role
+ * @param array $authority
+ */
+function user_login($id, $role = '', $authority = [])
+{
+    user_id($id);
+    user_role($role);
+    user_authority($authority);
+}
+
+/**
+ * @notes 退出登录
+ */
+function user_logout()
+{
+    user_id(null);
+    user_role(null);
+    user_authority(false);
+    session_destroy();
+}
+
+/**
+ * @notes 全部权限(true)、无任何权限(false)、指定权限列表(array)
+ * @param $url
+ * @return bool
+ */
+function user_access($url)
+{
+    return is_bool(user_authority()) ? user_authority() : in_array($url, user_authority());
+}
+
+/**
+ * @notes 用户信息同步
+ */
+function user_sync()
+{
+    $auth = config('authority.auth');
+    session('user_authority', array_merge(
+        is_callable($auth) ? $auth() : $auth,
+        config('authority.except')
+    ));
+}
+
+/** 返回结果封装 */
+
+/**
+ * @notes 成功
+ * @param array $data
+ * @return array
+ */
+function true($data = [])
+{
+    return [true, $data];
+}
+
+/**
+ * @notes 失败
+ * @param string $msg
+ * @return array
+ */
+function false($msg = '')
+{
+    return [false, $msg];
+}
+
+
+/** 框架初始化 */
+function init(){
+    //关闭严格模式
+    ini_set("display_errors", 0);
+
+    define('MICRO_TIME', microtime(true));
+    define('TIME', intval(MICRO_TIME));
+
+    /** composer引入 */
+    is_file(__DIR__ . '/vendor/autoload.php') && require_once __DIR__ . '/vendor/autoload.php';
+
+    define("DS", DIRECTORY_SEPARATOR);
+    define("ROOT_PATH", $_SERVER['DOCUMENT_ROOT']);
+    define("UPLOAD_PATH", ROOT_PATH . DS . "upload");
+    define("LOG_PATH", ROOT_PATH . DS . "log");
+
+    //validate正则类型
+    define('REQ', 'require');
+    define('INT', 'int');
+    define('FLOAT', 'float');
+    define('MOBILE', 'mobile');
+    define('EMAIL', 'email');
+    define('ARR', 'array');
+
+    //validate支持的所有正则
+    define('VALIDATE_TYPE_ARRAY', [REQ, INT, FLOAT, MOBILE, EMAIL, ARR]);
+
+    //表关联常量
+    define('ONE_TO_ONE', 11); //一对一
+    define('ONE_TO_MANY', 13); //一对多
+
+    /** 内置预设API */
+    define('API_UPLOAD', 10001);
+    define('API_TOKEN', 10003);
+    define('API_REGISTER', 10004);
+    define('API_LOGIN', 10005);
+    define('API_LOGOUT', 10006);
+    define('API_CHECK_LOGIN', 10007);
+    define('API_VERIFY_CODE_IMAGE', 10008);
+    define('API_VERIFY_CODE_EMAIL', 10009);
+    define('API_VERIFY_CODE_MOBILE', 10010);
+
+    /** 日志类型 */
+    define('LOG_NORMAL', 1);
+    define('LOG_WARN',  3);
+    define('LOG_ERROR', 5);
+
+    if (config('app.debug')) {
+        ini_set("display_errors", "On");
+        error_reporting(E_ALL);
+        //配置检查员(app.debug开启后才会执行)
+//        ConfigChecker::run();
     }
 
-    /**
-     * Class Mysql 数据库驱动
-     */
-    class Mysql
-    {
-        use LogTrait;
-
-        //类型
-        protected $type;
-        //主机名
-        protected $host;
-        //端口
-        protected $port;
-        //数据库名
-        protected $dbname;
-        //用户名
-        protected $username;
-        //密码
-        protected $password;
-        //编码
-        protected $charset;
-
-        protected $sql;
-
-        /**
-         * @var PDO
-         */
-        protected static $pdo;
-
-        public function __construct()
-        {
-            $config = config('database');
-            $this->type = $config['type'];
-            $this->host = $config['host'];
-            $this->port = $config['port'];
-            $this->dbname = $config['dbname'];
-            $this->username = $config['username'];
-            $this->password = $config['password'];
-            $this->charset = $config['charset'];
-
-            $this->connect();
-        }
-
-        /**
-         * 开启事务
-         */
-        public function startTrans()
-        {
-            self::$pdo->beginTransaction();
-            return $this;
-        }
-
-        /**
-         * 回滚
-         */
-        public function rollback()
-        {
-            self::$pdo->rollBack();
-            return $this;
-        }
-
-        /**
-         * 提交事务
-         */
-        public function commit()
-        {
-            self::$pdo->commit();
-        }
-
-        /**
-         * 返回增删改影响记录数|查结果集
-         * Created by PhpStorm.
-         * @return array|int
-         * @author QiuMinMin
-         * Date: 2020/8/1 23:11
-         */
-        public function execute()
-        {
-            $result = self::$pdo->prepare($this->sql);
-
-            $result->execute();
-
-            $errorInfo = $result->errorInfo();
-
-            if ($errorInfo[2] != null) {
-                error($errorInfo[2]);
+    //加载用户配置引入文件
+    $files = config('include_file');
+    if (is_array($files)) {
+        foreach ($files as $file) {
+            if (file_exists($file)) {
+                require_once $file;
             }
-
-            return stripos($this->sql, 'select')
-                ? $result->fetchAll(PDO::FETCH_ASSOC)
-                : $result->rowCount();
-        }
-
-        /**
-         * 获取|修改SQL
-         * Created by PhpStorm.
-         * @param null|string $sql
-         * @return mixed
-         * @author QiuMinMin
-         * Date: 2020/8/1 23:03
-         */
-        public function sql($sql = null)
-        {
-            if (empty($sql)) {
-                return $this->sql;
-            }
-
-            $this->sql = $sql;
-            return $this;
-        }
-
-        /**
-         * 连接数据库
-         * @return mixed
-         */
-        protected function connect()
-        {
-            if (empty(self::$pdo)) {
-                //mysql连接
-                $dsn = sprintf("%s:host=%s;port=%s;dbname=%s",
-                    $this->type, $this->host,
-                    $this->port, $this->dbname
-                );
-                self::$pdo = new PDO($dsn, $this->username, $this->password);
-                //编码
-                self::$pdo->exec(sprintf("set names %s", $this->charset));
-                //持久化连接
-                self::$pdo::ATTR_PERSISTENT;
-            }
-
-            return $this;
-        }
-
-        /**
-         * 关闭数据库
-         */
-        protected function close()
-        {
-            self::$pdo = null;
-        }
-
-        public function __destruct()
-        {
-            // TODO: Implement __destruct() method.
-            $this->close();
         }
     }
+}
+
+/** 框架执行 */
+function run()
+{
+    //注册信息
+    //注册错误处理函数
+    set_error_handler(config('handler.set_error_handler'));
+    set_exception_handler(config('handler.set_exception_handler'));
+    register_shutdown_function(config('handler.register_shutdown_function'));
+
 
     /**
      * SQL组装增强特性
@@ -1735,7 +1841,7 @@ function frameInitialize()
             }
 
             $config = config('database.autoQuery');
-            if (Is::array($config) && count($config) == 0) {
+            if (is_array($config) && count($config) == 0) {
                 return $data;
             }
 
@@ -1773,359 +1879,6 @@ function frameInitialize()
                 unset($record);
             }
             return $data;
-        }
-    }
-
-    /**
-     * Class Db 拓展执行器
-     */
-    class Db extends Mysql
-    {
-
-        use DbPlusTrait;
-
-        /**
-         * @var string 组装where语句
-         */
-        protected $where = "";
-
-        public function insert($data)
-        {
-            //自动插入时间戳
-            $data = $this->autoTimestampWithUpdate($data, true);
-            //自动补全表字段
-            $data = $this->autoCompleteInsert($data);
-
-            $sql = "INSERT `{$this->trueTableName}`(%s) VALUES(%s)";
-            $fields = "";
-            $values = "";
-
-            foreach ($data as $k => $v) {
-                $fields .= "`$k`,";
-                $values .= "'$v',";
-            }
-            $fields = substr($fields, 0, strlen($fields) - 1);
-            $values = substr($values, 0, strlen($values) - 1);
-            return sprintf($sql, $fields, $values);
-        }
-
-        public function update($set)
-        {
-            $set = $this->autoTimestampWithUpdate($set, false);
-
-            $sql = "UPDATE `{$this->trueTableName}` SET ";
-            foreach ($set as $k => $v) {
-                list($space, $v) = explode(SQL_RAW_PREFIX, $v);
-                if (empty($space)) {
-                    $sql .= " `$k` = $v,";
-                } else {
-                    $sql .= " `$k` = '$space',";
-                }
-            }
-            if (substr($sql, -1, 1) == ',') {
-                $sql = substr($sql, 0, strlen($sql) - 1);
-            }
-            return $sql . " WHERE 1=1 " . $this->where;
-        }
-
-        public function delete()
-        {
-            if ($this->trueDelete) {
-                return sprintf('DELETE FROM %s WHERE 1=1 %s', $this->trueTableName, $this->where);
-            } else {
-                $result = $this->getTableFalseDeleteField();
-                if ($result) {
-                    return sprintf('UPDATE %s SET `%s` = "%s" WHERE 1=1 %s', $this->trueTableName, $result[0],
-                        $result[1], $this->where);
-                } else {
-                    return sprintf('DELETE FROM %s WHERE 1=1 %s', $this->trueTableName, $this->where);
-                }
-            }
-        }
-
-        public function select($fields = "*")
-        {
-            $result = $this->getTableFalseDeleteField();
-            if ($result) {
-                $this->where .= " AND {$result[0]} = {$result[1]} ";
-            }
-
-            return sprintf(
-                'SELECT %s FROM `%s` WHERE 1=1 %s',
-                $fields,
-                $this->trueTableName,
-                $this->where
-            );
-        }
-
-        public function get($fields = "*")
-        {
-            $result = $this->getTableFalseDeleteField();
-            if ($result) {
-                $this->where .= " AND {$result[0]} = {$result[1]} ";
-            }
-
-            return sprintf(
-                'SELECT %s FROM `%s` WHERE 1=1 %s LIMIT 1',
-                $fields,
-                $this->trueTableName,
-                $this->where
-            );
-        }
-
-        public function count()
-        {
-            $result = $this->getTableFalseDeleteField();
-            if ($result) {
-                $this->where .= " AND {$result[0]} = {$result[1]} ";
-            }
-
-            return sprintf(
-                'SELECT COUNT(*) as `count` as `count` FROM `%s` WHERE 1=1 %s',
-                $this->trueTableName,
-                $this->where
-            );
-        }
-
-        public function getField($field, $multi = false)
-        {
-            if (empty($field)) {
-                throw new Exception('getField的入参不能为空');
-            }
-
-            $result = $this->getTableFalseDeleteField();
-            if ($result) {
-                $this->where .= " AND {$result[0]} = {$result[1]} ";
-            }
-
-            return sprintf(
-                'SELECT %s FROM `%s` WHERE 1=1 %s %s',
-                $field,
-                $this->trueTableName,
-                $this->where,
-                $multi ? '' : 'LIMIT 1'
-            );
-        }
-
-        public function like($name, $value)
-        {
-            if (!empty($value) || $value === 0) {
-                $nameList = explode("|", $name);
-                foreach ($nameList as $name) {
-                    if (empty($name)) {
-                        continue;
-                    }
-                    list($space, $name) = explode(SQL_RAW_PREFIX, $name);
-                    if (empty($space)) {
-                        $this->where .= " AND $name like $value";
-                    } else {
-                        $this->where .= " AND $space like '$value'";
-                    }
-                }
-            }
-            return $this;
-        }
-
-        public function and($name, $value)
-        {
-            if (!empty($value) || $value === 0) {
-                $nameList = explode("|", $name);
-                foreach ($nameList as $name) {
-                    if (empty($name)) {
-                        continue;
-                    }
-                    list($space, $value) = explode(SQL_RAW_PREFIX, $value);
-                    if (empty($space)) {
-                        $this->where .= " AND $name = $value";
-                    } else {
-                        $this->where .= " AND $name = '$space'";
-                    }
-                }
-            }
-            return $this;
-        }
-
-        public function or($condition)
-        {
-            $where = " AND ( 1 != 1 ";
-            if (count($condition) > 0) {
-                foreach ($condition as $name => $value) {
-                    if (is_numeric($name)) {
-                        continue;
-                    }
-                    list($space, $value) = explode(SQL_RAW_PREFIX, $value);
-                    if (empty($space)) {
-                        $where .= " OR $name = $value ";
-                    } else {
-                        $where .= " OR $name = '$space' ";
-                    }
-                }
-            }
-            $where .= " ) ";
-            $this->where .= $where;
-            return $this;
-        }
-
-        public function in($name, array $list)
-        {
-            if (empty($list)) {
-                array_push($list, 0);
-            }
-            $temp = implode(",", $list);
-            $this->where .= " AND $name IN($temp) ";
-            return $this;
-        }
-
-        public function notIn($name, $list)
-        {
-            if (empty($list)) {
-                array_push($list, 0);
-            }
-            $temp = implode(",", $list);
-            $this->where .= " AND $name NOT IN($temp) ";
-            return $this;
-        }
-
-        /**
-         * 设置或获取SQL
-         * @param $sql
-         * @return $this|string
-         */
-        public function sql($sql = null)
-        {
-            if (!empty($sql)) {
-                $this->sql = $sql;
-                $this->where = "";
-                return $this;
-            } else {
-                return $this->sql;
-            }
-        }
-
-        /**
-         * 返回记录数或结果集
-         * Created by PhpStorm.
-         * @author QiuMinMin
-         * Date: 2020/8/1 22:35
-         */
-        public function execute()
-        {
-            if (empty($this->sql)) {
-                return null;
-            }
-
-            try {
-                $this->connect();
-
-                $result = parent::execute();
-
-                //钩子
-                hook('sql', [
-                    'sql' => $this->sql
-                ]);
-
-                //执行日志
-                $this->log_file('run true :' . $this->sql, 'sql');
-
-                return $result;
-            } catch (Exception $e) {
-                $this->log_file('run false :' . $this->sql, 'sql');
-                error($e->getMessage());
-                return false;
-            }
-        }
-
-    }
-
-    /**
-     * SQL拼装类
-     * Class Sql
-     */
-    class Sql extends Db
-    {
-
-        public function __construct($tableName = null)
-        {
-            parent::__construct();
-            $this->trueTableName = config('database.tableNamePrefix') . $tableName;
-        }
-
-        public function apino($expression, $params)
-        {
-            return ApinoSql::build($this->trueTableName, $expression, $params)->sql();
-        }
-
-    }
-
-    /**
-     * 模型类(用于连接数据库和执行SQL语句)
-     * Class Model
-     */
-    class Model extends Db
-    {
-        public function __construct($tableName = null)
-        {
-            parent::__construct();
-            if ($tableName) {
-                $this->trueTableName = config('database.tableNamePrefix') . $tableName;
-            }
-        }
-
-        public function insert($data)
-        {
-            $this->sql = parent::insert($data);
-            return $this->execute();
-        }
-
-        public function delete()
-        {
-            $this->sql = parent::delete();
-            return $this->execute();
-        }
-
-        public function update($set)
-        {
-            $this->sql = parent::update($set);
-            return $this->execute();
-        }
-
-        public function select($fields = "*")
-        {
-            $this->sql = parent::select($fields);
-            return $this->suppleData($this->execute());
-        }
-
-        public function get($fields = "*")
-        {
-            $this->sql = parent::get($fields);
-            return $this->suppleData([$this->execute()])[0];
-        }
-
-        public function count()
-        {
-            $this->sql = parent::count();
-            return $this->execute()[__FUNCTION__];
-        }
-
-        public function getField($field, $multi = false)
-        {
-            $this->sql = parent::getField($field, $multi);
-            $result = $this->execute()[$field];
-            return $multi ? array_column($result, $field) : $result[$field];
-        }
-
-        public function apino($expression, $params)
-        {
-            $apinoSql = ApinoSql::build($this->trueTableName, $expression, $params);
-            $result = $this->sql($apinoSql->sql())->execute();
-            if ($apinoSql->isSelectOne()) {
-                //只查单
-                return $result[0];
-            } elseif ($apinoSql->isSelectCount()) {
-                //只需要总数
-                return $result[0]['count'];
-            }
-            return $result;
         }
     }
 
@@ -2182,13 +1935,15 @@ function frameInitialize()
          * @author QiuMinMin
          * Date: 2020/9/4 0:33
          */
-        public static function build($trueTableName, $expression, $params = []){
+        public static function build($trueTableName, $expression, $params = [])
+        {
             $self = new self();
             $self->trueTableName = $trueTableName;
             $self->expression = $expression;
             $self->params = $params;
             return $self;
         }
+
         /**
          * 聚合执行入口
          * Created by PhpStorm.
@@ -2198,7 +1953,7 @@ function frameInitialize()
          */
         public function sql()
         {
-            if(empty($this->sql)){
+            if (empty($this->sql)) {
                 $this->apinoExpression = ApinoExpression::resolver($this->expression, $this->params);
                 foreach (['select', 'insert', 'update', 'delete'] as $item) {
                     if (strpos($this->expression, $item) > -1) {
@@ -2208,6 +1963,7 @@ function frameInitialize()
             }
             return $this->sql;
         }
+
         /**
          * 生成删除SQL
          */
@@ -2230,6 +1986,7 @@ function frameInitialize()
             }
             $this->sql = $sql;
         }
+
         /**
          * 生成插入SQL
          */
@@ -2248,6 +2005,7 @@ function frameInitialize()
                 implode(',', $values)
             );
         }
+
         /**
          * 生成更新SQL
          */
@@ -2265,6 +2023,7 @@ function frameInitialize()
             $sql = sprintf($sql, $set, $where);
             $this->sql = $sql;
         }
+
         /**
          * 生成查询SQL
          */
@@ -2318,7 +2077,17 @@ function frameInitialize()
      */
     class ApinoExpression
     {
-        use ErrorTrait;
+        protected $error;
+
+        public function error($error = null)
+        {
+            if ($error === null) {
+                return $this->error;
+            }
+
+            $this->error = $error;
+            return false;
+        }
 
         /**
          * @var string[] 支持的操作
@@ -2490,13 +2259,13 @@ function frameInitialize()
          * 获取子表达式(内置缓存)
          * Created by PhpStorm.
          * @param $key
-         * @param Closure|null $handler Closure
+         * @param callback|null $handler callback
          * @param array $params
          * @return mixed|null
          * @author QiuMinMin
          * Date: 2020/6/5 17:56
          */
-        private function getSubExpValue($key, Closure $handler = null, $params = [])
+        private function getSubExpValue($key, callback $handler = null, $params = [])
         {
             //查询缓存
             $value = $this->subExpCache($key);
@@ -2775,130 +2544,6 @@ function frameInitialize()
     }
 
     /**
-     * 上传文件封装类
-     * Class File
-     */
-    class File
-    {
-        /**
-         * @var $name string 文件名
-         */
-        private $name;
-        /**
-         * @var $tmp string 临时文件名
-         */
-        private $tmpName;
-        /**
-         * @var $size string 文件大小
-         */
-        private $size;
-        /**
-         * @var $fileName string 上传的文件名
-         */
-        private $fileName;
-        /**
-         * @var $saveName string 保存的路径
-         */
-        private $saveName;
-        /**
-         * @var $error string 错误信息
-         */
-        private $error;
-
-        public function __construct($name)
-        {
-            $this->name = $name;
-        }
-
-        /**
-         * 是否有上传文件
-         * @return bool
-         */
-        public function hasFile()
-        {
-            return isset($this->tmp);
-        }
-
-        /**
-         * 文件是否已经转移
-         * @return bool
-         */
-        public function isMove()
-        {
-            return isset($this->saveName);
-        }
-
-        /**
-         * 获取保存的文件名
-         */
-        public function getSaveName()
-        {
-            return $this->saveName;
-        }
-
-        /**
-         * 获取上传文件名
-         * @return string
-         */
-        public function getFileName()
-        {
-            return $this->fileName;
-        }
-
-        /**
-         * 获取错误信息
-         * @return string
-         */
-        public function getError()
-        {
-            return $this->error;
-        }
-
-        /**
-         * 校验上传文件得有效性
-         * @param array $extArray 允许得格式
-         * @param null $maxSize 允许得最大大小
-         * @return bool
-         */
-        public function valid($extArray = [], $maxSize = null)
-        {
-            $temp = explode(".", $this->fileName);
-            $ext = array_pop($temp);
-            if (!in_array($ext, $extArray)) {
-                $this->error = "上传文件的格式为{$ext}, 非合法格式：" . implode(",", $extArray);
-                return false;
-            }
-            if ($this->size > $maxSize) {
-                $this->error = "上传文件大小为{$this->size}，已超过$maxSize";
-                return false;
-            }
-            return true;
-        }
-
-        /**
-         * 移动文件
-         * @param $destination
-         * @return bool
-         */
-        public function move($destination)
-        {
-            $temp = explode("/", $destination);
-            array_pop($temp);
-            $path = implode("/", $temp);
-
-            if (!is_dir($path)) {
-                mkdir($path, 0777, true);
-            }
-            $res = move_uploaded_file($this->tmpName, $destination);
-            if (!$res) {
-                $this->error = "系统权限不足，无法上传文件";
-                return false;
-            }
-            return $res;
-        }
-    }
-
-    /**
      * 路由解析类
      * Class Router
      * @package apino
@@ -3083,1313 +2728,298 @@ function frameInitialize()
 
     }
 
-    /**
-     * API拦截器
-     * Class SystemApi
-     */
-    class Api
-    {
-        /**
-         * 执行拦截器
-         * Created by PhpStorm.
-         * @param $controller
-         * @param $action
-         * @return false
-         * @author QiuMinMin
-         * Date: 2020/5/23 8:41
-         */
-        public static function interceptor($controller, $action)
-        {
-            if (empty($controller) || empty($action)) {
-                //拦截失败
-                return false;
-            }
-            $handlerClass = ucfirst($controller) . 'ApiHandler';
-            $config = config('api.' . $controller);
-            if (class_exists($handlerClass) || $config) {
-                $config = $config[$action];
+//
+//    /**
+//     * 配置检查工具
+//     * Class AppConfigInspectionTool
+//     */
+//    class ConfigChecker
+//    {
+//
+//        const callback = callback::class;
+//        const INT = 'integer';
+//        const STR = 'string';
+//        const BOOL = 'boolean';
+//        const ARR = 'array';
+//        const FLOAT = 'float';
+//        const DOUBLE = 'double';
+//
+//        public static function run()
+//        {
+//            if (empty($GLOBALS['config_checker'])) {
+//                return;
+//            }
+//
+//            $GLOBALS['config_checker'] = 1;
+//
+//            try {
+//                $self = new self();
+//
+//                $self->checkAppConfig();
+//                $self->checkDatabaseConfig();
+//                $self->checkSmtpConfig();
+//                $self->checkRouteConfig();
+//                $self->checkAuthorityConfig();
+//                $self->checkApiConfig();
+//            } catch (Exception $e) {
+//                Response::error($e->getMessage());
+//                die();
+//            }
+//        }
+//
+//        private function throwConfigError($configNickName, $configName, $typeName)
+//        {
+//            throw new Exception("配置{$configNickName}({$configName})必须存在且值类型为{$typeName}");
+//        }
+//
+//        private function checkArray($vc, $prefixName = '', $prefixNick = '')
+//        {
+//            $name = $prefixName . $vc['name'];
+//            $nick = $prefixNick . $vc['nick'];
+//            $this->check($name, $vc['nick'], $vc['type']);
+//            foreach ($vc['children'] as $child) {
+//                $this->checkArray($child, $name . '.', $nick);
+//            }
+//        }
+//
+//        private function check($configName, $configNickName, $type)
+//        {
+//            $var = [
+//                self::BOOL => '布尔型',
+//                self::INT => '整型',
+//                self::STR => '字符串型',
+//                self::ARR => '数组型',
+//                self::FLOAT => '浮点型',
+//                self::DOUBLE => '双精度型',
+//            ];
+//            $class = [
+//                self::callback => callback::class
+//            ];
+//
+//            if (in_array($type, array_keys($var))) {
+//                if (config($configName) === null || gettype(config($configName)) !== $type) {
+//                    $this->throwConfigError($configNickName, $configName, $var[$type]);
+//                }
+//            } elseif (in_array($type, array_keys($class))) {
+//                if (config($configName) === null || get_class(config($configName)) !== $type) {
+//                    $this->throwConfigError($configNickName, $configName, $class[$type]);
+//                }
+//            } else {
+//                $this->throwConfigError($configNickName, $configName, $type);
+//            }
+//        }
+//
+//        private function checkAppConfig()
+//        {
+//            $this->checkArray($this->c('app', '应用', self::ARR, [
+//                $this->c('debug', '调试模式', self::BOOL),
+//                $this->c('response', '出参配置', self::ARR, [
+//                    $this->c('page', '分页', self::ARR, [
+//                        $this->c('total', '记录总数出参名', self::STR),
+//                        $this->c('list', '记录数据出参名', self::STR)
+//                    ]),
+//                ]),
+//                $this->c('trueDeleteLock', '真删锁', self::ARR, [
+//                    $this->c('switch', '验证开关', self::BOOL),
+//                    $this->c('key', '值', self::STR),
+//                    $this->c('param', '入参名', self::STR),
+//                ]),
+//                $this->c('user', '用户', self::ARR, [
+//                    $this->c('id', 'ID', self::STR),
+//                    $this->c('role', '角色', self::callback),
+//                    $this->c('auth', '权限', self::ARR, [
+//                        $this->c('mode', '模式', self::STR),
+//                        $this->c('source', '获取源', self::callback),
+//                        $this->c('except', '权限白名单', self::ARR),
+//                    ]),
+//                ])
+//            ]));
+//        }
+//
+//        private function checkDatabaseConfig()
+//        {
+//            $this->checkArray($this->c('database', '数据库', self::ARR, [
+//                $this->c('type', '类型', self::STR),
+//                $this->c('host', '地址', self::STR),
+//                $this->c('port', '端口', self::STR),
+//                $this->c('dbname', '库名', self::STR),
+//                $this->c('username', '用户名', self::STR),
+//                $this->c('password', '密码', self::STR),
+//                $this->c('tableNamePrefix', '表名前缀', self::STR),
+//                $this->c('charset', '编码方式', self::STR),
+//                $this->c('autoQuery', '自动关联查询', self::ARR),
+//                $this->c('autoCompleteInsert', '自动补全插入', self::BOOL),
+//                $this->c('autoCompleteNoNull', '自动填充字段不存在null值', self::BOOL),
+//                $this->c('autoTimestamp', '自动插入时间戳', self::ARR, [
+//                    $this->c('switch', '开关', self::BOOL),
+//                    $this->c('createTime', '创建时间', self::ARR),
+//                    $this->c('updateTime', '修改时间', self::ARR),
+//                    $this->c('generator', '时间戳值', self::INT)
+//                ]),
+//                $this->c('falseDeleteValue', '表假删除状态', self::ARR)
+//            ]));
+//        }
+//
+//        private function checkSmtpConfig()
+//        {
+//            $this->checkArray($this->c('smtp', '邮箱', self::ARR, [
+//                $this->c('server', '域名', self::STR),
+//                $this->c('port', '端口', self::INT),
+//                $this->c('user', '授权用户名', self::STR),
+//                $this->c('pass', '授权密码', self::STR),
+//                $this->c('debug', '调试模式', self::BOOL),
+//                $this->c('type', '内容格式', self::STR),
+//            ]));
+//        }
+//
+//        private function checkRouteConfig()
+//        {
+//            $this->checkArray($this->c('route', '路由', self::ARR));
+//        }
+//
+//        private function checkAuthorityConfig()
+//        {
+//            $this->checkArray($this->c('authority', '角色权限', self::ARR, [
+//                $this->c(GUEST, '游客', self::ARR),
+//            ]));
+//        }
+//
+//        private function checkApiConfig()
+//        {
+//            $this->checkArray($this->c('api', '预设接口', self::ARR, [
+//                $this->c('util', '通用', self::ARR, [
+//                    $this->c('upload', '上传配置', self::ARR, [
+//                        $this->c('image', '图片', self::ARR, [
+//                            $this->c('fileParam', '文件入参', self::STR),
+//                            $this->c('maxSize', '大小最大限制', self::INT),
+//                            $this->c('dir', '存储定制', self::STR),
+//                        ]),
+//                        $this->c('php', 'PHP', self::ARR, [
+//                            $this->c('fileParam', '文件入参', self::STR),
+//                            $this->c('maxSize', '大小最大限制', self::INT),
+//                            $this->c('dir', '存储定制', self::STR),
+//                        ]),
+//                    ]),
+//                    $this->c('verifyCode', '验证码', self::ARR, [
+//                        $this->c('param', '入参名', self::STR),
+//                        $this->c('sence', '场景', self::ARR),
+//                    ]),
+//                    $this->c('token', 'TOKEN', self::ARR, [
+//                        $this->c('switch', '开关', self::BOOL),
+//                        $this->c('param', '入参名', self::STR),
+//                        $this->c('generator', '生成器', self::callback)
+//                    ]),
+//                ]),
+//                $this->c('user', '用户', self::ARR, [
+//                    $this->c('register', '注册', self::ARR, [
+//                        $this->c('username', '用户名入参名', self::STR),
+//                        $this->c('password', '密码入参名', self::STR),
+//                        $this->c('confirmPassword', '确认密码入参名', self::STR),
+//                        $this->c('passwordEncode', '密码加密回调', self::callback),
+//                        $this->c('safety', '前置安全验证回调', self::callback),
+//                        $this->c('success', '成功后置回调', self::callback),
+//                        $this->c('error', '失败后置回调', self::callback),
+//                    ]),
+//                    $this->c('login', '登录', self::ARR, [
+//                        $this->c('username', '用户名入参名', self::STR),
+//                        $this->c('password', '密码入参名', self::STR),
+//                        $this->c('passwordEncode', '密码加密回调', self::callback),
+//                        $this->c('safety', '前置安全验证回调', self::callback),
+//                        $this->c('success', '成功后置回调', self::callback),
+//                        $this->c('error', '失败后置回调', self::callback),
+//                    ]),
+//                    $this->c('logout', '登出后置回调', self::callback),
+//                    $this->c('checkLogin', '检查登录验证回调', self::callback),
+//                ])
+//            ]));
+//        }
+//
+//        //校验配置
+//        private function c($name, $nick, $type, $children = [])
+//        {
+//            return [
+//                'name' => $name,
+//                'nick' => $nick,
+//                'type' => $type,
+//                'children' => $children
+//            ];
+//        }
+//    }
 
-                //场景专用配置
-                $sence = Request::instance()->param('sence');
-                if (!empty($config[$sence])) {
-                    $config = $config[$sence];
-                }
-                $handler = new $handlerClass();
-                if (method_exists($handler, $action)) {
-                    return $handler->$action($config);
-                }
-            }
-            return null;
-        }
 
-        /**
-         * 校验TOKEN值
-         * Created by PhpStorm.
-         * @param Router $router
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/8/18 8:05
-         */
-        public static function checkToken(Router $router)
-        {
-            if ($router->controller() == 'util' && $router->action() == 'token') {
-                return Result::success();
-            }
 
-            $c = config('api.util.token');
-            if (!$c['switch']) {
-                return Result::success();
-            }
+    //载入用户自定义代码
+    custom();
 
-            if (!input($c['param'])) {
-                return Result::error('缺少TOKEN值');
-            }
+    //页面不进行直接渲染
+    ob_start();
 
-            if (!session('token.value')) {
-                return Result::error('请先获取TOKEN值');
-            }
-            if (session('token.value') != input($c['param'])) {
-                return Result::error('TOKEN值错误');
-            }
 
-            return Result::success();
-        }
 
-        /**
-         * 验证安全验证码
-         * Created by PhpStorm.
-         * @param Router $router
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/8/18 19:27
-         */
-        public static function checkVerifyCode(Router $router)
-        {
-            /**
-             * @var $verifyCode VerifyCode
-             */
-            $verifyCode = config("api.util.verifyCode.sence.{$router->url()}");
-            if (!$verifyCode) {
-                return Result::success();
-            }
-            $param = config('api.util.verifyCode.param');
-            if (!VerifyCode::checkCode($verifyCode->type(), input($param))) {
-                return Result::error('验证码错误');
-            }
-            return Result::success();
-        }
+    //初始化钩子
+    callback('event.after_init');
+
+    /** 事件钩子 */
+    callback('event.before_router');
+
+    //获取路由信息
+    $router = Router::route();
+
+    /** 事件钩子 */
+    callback('event.after_router');
+
+    //校验TOKEN(全指定或全不校验)
+    list($success, $result) = api_token($router);
+    !$success && json(1, $result);
+
+    //校验验证码(仅指定api校验)
+    list($success, $result) = verify_code_check($router);
+    !$success && json(1, $result);
+
+
+    /** 事件钩子 */
+    callback('event.before_authority');
+
+    //同步当前用户角色权限信息
+    user_sync();
+
+    //权限判断
+    $result = user_access($router->url());
+
+    /** 事件钩子 */
+    callback('event.after_authority');
+
+    $result || json(1, '当前用户没有该权限');
+
+    //内置api拦截
+    $result = api_interceptor($router->controller(), $router->action());
+    if ($result !== false) {
+        $result[0] ? json(0, $result[1]) : json(1, $result[1]);
     }
 
-    /**
-     * 验证码工具类
-     * Class VerifyCode
-     */
-    class VerifyCode
-    {
+    $params = input();
 
-        const IMAGE = 'image';
-        const EMAIL = 'email';
-        const MOBILE = 'mobile';
+    //入参校验器
+    list($success, $result) = validate($router->url(), $params);
+    !$success && json(1, $result);
 
-        /**
-         * @var string 验证码
-         */
-        private $code;
+    //入参转换器
+    $callback = config("input_converter.{$router->url()}");
+    $params = is_callable($callback) ? $callback($params) : $params;
 
-        //当前生成验证码类型
-        private $type;
-        //验证码长度
-        private $codeNumber;
-        //图片验证码信息
-        private $width, $height;
-        //邮箱验证码信息
-        private $codeTemplate, $title, $content;
-        //手机验证码信息
-        private $args;
+    callback('event.before_action');
 
-        /**
-         * 标记为邮箱验证码
-         * Created by PhpStorm.
-         * @param $codeNumber
-         * @param $title
-         * @param $content
-         * @param $codeTemplate
-         * @return VerifyCode
-         * @author QiuMinMin
-         * Date: 2020/8/18 0:33
-         */
-        public static function asEmail($codeNumber, $title, $content, $codeTemplate)
-        {
-            $self = new self();
-            $self->type = self::EMAIL;
-            $self->title = $title;
-            $self->content = $content;
-            $self->codeTemplate = $codeTemplate;
-            $self->codeNumber = $codeNumber;
-            return $self;
-        }
+    //调用相应方法
+    $object = action($router->url(), $params);
 
-        /**
-         * 标记为图片验证码
-         * Created by PhpStorm.
-         * @param $codeNumber
-         * @param $width
-         * @param $height
-         * @return VerifyCode
-         * @author QiuMinMin
-         * Date: 2020/8/18 0:34
-         */
-        public static function asImage($codeNumber, $width, $height)
-        {
-            $self = new self();
-            $self->type = self::IMAGE;
-            $self->width = $width;
-            $self->height = $height;
-            $self->codeNumber = $codeNumber;
-            return $self;
-        }
+    callback('event.before_action');
 
-        /**
-         * 标识为手机验证码
-         * Created by PhpStorm.
-         * @param $codeNumber
-         * @param array $args
-         * @return VerifyCode
-         * @author QiuMinMin
-         * Date: 2020/8/18 20:32
-         */
-        public static function asMobile($codeNumber, $args = [])
-        {
-            $self = new self();
-            $self->type = self::MOBILE;
-            $self->codeNumber = $codeNumber;
-            $self->args = $args;
-            return $self;
-        }
+    //响应内容
+    json(0, $object);
 
-        /**
-         * 执行
-         * Created by PhpStorm.
-         * @author QiuMinMin
-         * Date: 2020/8/18 20:34
-         */
-        public function builder()
-        {
-            $this->generatorCode();
-            switch ($this->type) {
-                case self::EMAIL:
-                    return $this->email();
-                case self::IMAGE:
-                    return $this->image();
-                case self::MOBILE:
-                    $closure = config('handler.sms_handler');
-                    if (!Is::closure($closure)) {
-                        return false;
-                    }
-                    return $closure($this->args);
-            }
-            return false;
-        }
+    //页面缓存输出
+    ob_end_flush();
 
-        /**
-         * 生成验证码
-         * @return false|string
-         */
-        private function generatorCode()
-        {
-            $codes = implode(
-                "",
-                array_merge(
-                    range(0, 9),
-                    range("a", "z"),
-                    range("A", "Z")
-                )
-            );
-            $this->code = substr(str_shuffle($codes), 0, $this->codeNumber);
-
-            session("verifyCode.{$this->type}", $this->code);
-
-            return $this;
-        }
-
-        public function image()
-        {
-            $width = $this->width;
-            $height = $this->height;
-            //创建画布
-            $image = imagecreatetruecolor($width, $height);
-            //白色背景
-            $white = imagecolorallocate($image, 255, 255, 255);
-            //字体颜色
-            $font_color = imagecolorallocate(
-                $image,
-                rand(0, 255),
-                rand(0, 255),
-                rand(0, imagefill($image, 0, 0, $white))
-            );
-            //字体类型和大小
-            imagestring($image, 5, 10, 10, $this->code, $font_color);
-//    imagettftext($image, 24, 0, 5, 20, $font_color, "/.ttf", $_SESSION['system']['imgCode']);
-            //干扰线
-            for ($i = 0; $i < 80; $i++) {
-                $color = imagecolorallocate($image, rand(0, 255), rand(0, 255), rand(0, 255));
-                imagesetpixel($image, rand(0, $width), rand(0, $height), $color);
-            }
-            for ($i = 0; $i < 5; $i++) {
-                $color = imagecolorallocate($image, rand(0, 255), rand(0, 255), rand(0, 255));
-                imageline($image, rand(0, $width), rand(0, $height), rand(0, $width), rand(0, $height), $color);
-            }
-            ob_clean();
-            header("Content-type: image/png");
-            imagepng($image);
-            imagedestroy($image);
-            die();
-        }
-
-        public function email()
-        {
-            $emailConfig = config('smtp');
-            $smtp = new Smtp(
-                $emailConfig['server'], $emailConfig['port'], true, $emailConfig['sender'],
-                $emailConfig['password']
-            );//这里面的一个true是表示使用身份验证,否则不使用身份验证.
-            $smtp->debug = false;//是否显示发送的调试信息
-            //内容模板替换#code#关键字
-            $this->content = str_ireplace($this->codeTemplate, $this->code, $this->content);
-            $state = $smtp->sendmail(
-                $emailConfig['receiver'],
-                $emailConfig['sender'],
-                $this->title,
-                $this->content,
-                $emailConfig['type']
-            );
-            if ($state == "") {
-                return false;
-            } else {
-                return true;
-            }
-        }
-
-        public function type()
-        {
-            return $this->type;
-        }
-
-        /**
-         * 核对验证码
-         * Created by PhpStorm.
-         * @param $type
-         * @param $code
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/6/8 9:26
-         */
-        public static function checkCode($type, $code)
-        {
-            $sessCode = session('verifyCode.' . $type);
-            if (empty($sessCode)) {
-                return Result::error('请先获取验证码');
-            }
-            if (empty($code)) {
-                return Result::error('验证码不能为空');
-            }
-            if ($sessCode != $code) {
-                return Result::error('验证码不正确');
-            } else {
-                return Result::success();
-            }
-        }
-    }
-
-    /**
-     * 用户类
-     * Class User
-     */
-    class User
-    {
-
-        private static $prefix = 'apino_user.';
-
-        /**
-         * 编辑/获取用户ID
-         * Created by PhpStorm.
-         * @param string $id
-         * @return array|mixed|string
-         * @author QiuMinMin
-         * Date: 2020/5/25 10:58
-         */
-        public static function id($id = '')
-        {
-            $sessId = self::$prefix . 'id';
-            if ($id === '') {
-                return session($sessId);
-            } else {
-                session($sessId, $id);
-                return null;
-            }
-        }
-
-        /**
-         * 权限列表
-         * Created by PhpStorm.
-         * @param string $authority
-         * @return array|mixed|string|null
-         * @author QiuMinMin
-         * Date: 2020/5/25 11:03
-         */
-        public static function authority($authority = '')
-        {
-            $sessName = self::$prefix . 'authority';
-            if ($authority === '') {
-                return session($sessName);
-            } else {
-                session($sessName, $authority);
-                return null;
-            }
-        }
-
-        /**
-         * 是否已经登录
-         * Created by PhpStorm.
-         * @return bool
-         * @author QiuMinMin
-         * Date: 2020/5/25 11:01
-         */
-        public static function isLogin()
-        {
-            return !empty(self::id());
-        }
-
-        /**
-         * 退出登录
-         * Created by PhpStorm.
-         * @return bool
-         * @author QiuMinMin
-         * Date: 2020/5/25 11:04
-         */
-        public static function logout()
-        {
-            session_destroy();
-            self::id(null);
-            return true;
-        }
-
-        /**
-         * 是否拥有该权限
-         * Created by PhpStorm.
-         * @param $url
-         * @return bool
-         * @author QiuMinMin
-         * Date: 2020/5/25 11:04
-         */
-        public static function hasAuth($url)
-        {
-            $auth = self::authority();
-
-            //全部权限(true)或无任何权限(false)
-            if (gettype($auth) === 'boolean') {
-                return $auth;
-            }
-
-            //添加白名单地址到当前用户权限中
-            $auth = array_merge(config('app.user.auth.except'), $auth);
-
-            //不在权限列表中
-            if (!in_array($url, $auth)) {
-                return false;
-            }
-
-            return true;
-        }
-
-        /**
-         * 同步权限信息
-         * Created by PhpStorm.
-         * @author QiuMinMin
-         * Date: 2020/6/21 11:26
-         */
-        public static function syncAuth()
-        {
-            $userId = User::id();
-            $config = config('app.user');
-            switch ($config['auth']['mode']) {
-                case DATABASE:
-                    //权限入库形式
-                    $roleId = $config['role']($userId);
-                    session(self::$prefix . 'role', $roleId);
-                    $auth = $config['auth']($roleId);
-                    session(self::$prefix . 'auth', $auth);
-                    break;
-                case CONFIG:
-                    //权限配置形式
-                    $roleId = empty($userId) ? GUEST : $config['role']($userId);
-                    session(self::$prefix . 'role', $roleId);
-                    $auth = config('authority.' . $roleId);
-                    session(self::$prefix . 'authority', $auth);
-                    break;
-                case NONE:
-                    if (self::isLogin()) {
-                        session(self::$prefix . 'role', 'ROOT');
-                        //登录后直接获得全部权限
-                        session(self::$prefix . 'auth', true);
-                    } else {
-                        session(self::$prefix . 'role', GUEST);
-                        //未登录只能用游客权限
-                        session(self::$prefix . 'auth', config('authority.' . GUEST));
-                    }
-                    //无权限控制概念，仅登录和未登录
-                    break;
-            }
-        }
-    }
-
-    /**
-     * 配置检查工具
-     * Class AppConfigInspectionTool
-     */
-    class ConfigChecker
-    {
-
-        const CLOSURE = Closure::class;
-        const INT = 'integer';
-        const STR = 'string';
-        const BOOL = 'boolean';
-        const ARR = 'array';
-        const FLOAT = 'float';
-        const DOUBLE = 'double';
-
-        public static function run()
-        {
-            if (empty($GLOBALS['config_checker'])) {
-                return;
-            }
-
-            $GLOBALS['config_checker'] = 1;
-
-            try {
-                $self = new self();
-
-                $self->checkAppConfig();
-                $self->checkDatabaseConfig();
-                $self->checkSmtpConfig();
-                $self->checkRouteConfig();
-                $self->checkAuthorityConfig();
-                $self->checkApiConfig();
-            } catch (Exception $e) {
-                Response::error($e->getMessage());
-                die();
-            }
-        }
-
-        private function throwConfigError($configNickName, $configName, $typeName)
-        {
-            throw new Exception("配置{$configNickName}({$configName})必须存在且值类型为{$typeName}");
-        }
-
-        private function checkArray($vc, $prefixName = '', $prefixNick = '')
-        {
-            $name = $prefixName . $vc['name'];
-            $nick = $prefixNick . $vc['nick'];
-            $this->check($name, $vc['nick'], $vc['type']);
-            foreach ($vc['children'] as $child) {
-                $this->checkArray($child, $name . '.', $nick);
-            }
-        }
-
-        private function check($configName, $configNickName, $type)
-        {
-            $var = [
-                self::BOOL => '布尔型',
-                self::INT => '整型',
-                self::STR => '字符串型',
-                self::ARR => '数组型',
-                self::FLOAT => '浮点型',
-                self::DOUBLE => '双精度型',
-            ];
-            $class = [
-                self::CLOSURE => Closure::class
-            ];
-
-            if (in_array($type, array_keys($var))) {
-                if (config($configName) === null || gettype(config($configName)) !== $type) {
-                    $this->throwConfigError($configNickName, $configName, $var[$type]);
-                }
-            } elseif (in_array($type, array_keys($class))) {
-                if (config($configName) === null || get_class(config($configName)) !== $type) {
-                    $this->throwConfigError($configNickName, $configName, $class[$type]);
-                }
-            } else {
-                $this->throwConfigError($configNickName, $configName, $type);
-            }
-        }
-
-        private function checkAppConfig()
-        {
-            $this->checkArray($this->c('app', '应用', self::ARR, [
-                $this->c('debug', '调试模式', self::BOOL),
-                $this->c('response', '出参配置', self::ARR, [
-                    $this->c('page', '分页', self::ARR, [
-                        $this->c('total', '记录总数出参名', self::STR),
-                        $this->c('list', '记录数据出参名', self::STR)
-                    ]),
-                ]),
-                $this->c('trueDeleteLock', '真删锁', self::ARR, [
-                    $this->c('switch', '验证开关', self::BOOL),
-                    $this->c('key', '值', self::STR),
-                    $this->c('param', '入参名', self::STR),
-                ]),
-                $this->c('user', '用户', self::ARR, [
-                    $this->c('id', 'ID', self::STR),
-                    $this->c('role', '角色', self::CLOSURE),
-                    $this->c('auth', '权限', self::ARR, [
-                        $this->c('mode', '模式', self::STR),
-                        $this->c('source', '获取源', self::CLOSURE),
-                        $this->c('except', '权限白名单', self::ARR),
-                    ]),
-                ])
-            ]));
-        }
-
-        private function checkDatabaseConfig()
-        {
-            $this->checkArray($this->c('database', '数据库', self::ARR, [
-                $this->c('type', '类型', self::STR),
-                $this->c('host', '地址', self::STR),
-                $this->c('port', '端口', self::STR),
-                $this->c('dbname', '库名', self::STR),
-                $this->c('username', '用户名', self::STR),
-                $this->c('password', '密码', self::STR),
-                $this->c('tableNamePrefix', '表名前缀', self::STR),
-                $this->c('charset', '编码方式', self::STR),
-                $this->c('autoQuery', '自动关联查询', self::ARR),
-                $this->c('autoCompleteInsert', '自动补全插入', self::BOOL),
-                $this->c('autoCompleteNoNull', '自动填充字段不存在null值', self::BOOL),
-                $this->c('autoTimestamp', '自动插入时间戳', self::ARR, [
-                    $this->c('switch', '开关', self::BOOL),
-                    $this->c('createTime', '创建时间', self::ARR),
-                    $this->c('updateTime', '修改时间', self::ARR),
-                    $this->c('generator', '时间戳值', self::INT)
-                ]),
-                $this->c('falseDeleteValue', '表假删除状态', self::ARR)
-            ]));
-        }
-
-        private function checkSmtpConfig()
-        {
-            $this->checkArray($this->c('smtp', '邮箱', self::ARR, [
-                $this->c('server', '域名', self::STR),
-                $this->c('port', '端口', self::INT),
-                $this->c('user', '授权用户名', self::STR),
-                $this->c('pass', '授权密码', self::STR),
-                $this->c('debug', '调试模式', self::BOOL),
-                $this->c('type', '内容格式', self::STR),
-            ]));
-        }
-
-        private function checkRouteConfig()
-        {
-            $this->checkArray($this->c('route', '路由', self::ARR));
-        }
-
-        private function checkAuthorityConfig()
-        {
-            $this->checkArray($this->c('authority', '角色权限', self::ARR, [
-                $this->c(GUEST, '游客', self::ARR),
-            ]));
-        }
-
-        private function checkApiConfig()
-        {
-            $this->checkArray($this->c('api', '预设接口', self::ARR, [
-                $this->c('util', '通用', self::ARR, [
-                    $this->c('upload', '上传配置', self::ARR, [
-                        $this->c('image', '图片', self::ARR, [
-                            $this->c('fileParam', '文件入参', self::STR),
-                            $this->c('maxSize', '大小最大限制', self::INT),
-                            $this->c('dir', '存储定制', self::STR),
-                        ]),
-                        $this->c('php', 'PHP', self::ARR, [
-                            $this->c('fileParam', '文件入参', self::STR),
-                            $this->c('maxSize', '大小最大限制', self::INT),
-                            $this->c('dir', '存储定制', self::STR),
-                        ]),
-                    ]),
-                    $this->c('verifyCode', '验证码', self::ARR, [
-                        $this->c('param', '入参名', self::STR),
-                        $this->c('sence', '场景', self::ARR),
-                    ]),
-                    $this->c('token', 'TOKEN', self::ARR, [
-                        $this->c('switch', '开关', self::BOOL),
-                        $this->c('param', '入参名', self::STR),
-                        $this->c('generator', '生成器', self::CLOSURE)
-                    ]),
-                ]),
-                $this->c('user', '用户', self::ARR, [
-                    $this->c('register', '注册', self::ARR, [
-                        $this->c('username', '用户名入参名', self::STR),
-                        $this->c('password', '密码入参名', self::STR),
-                        $this->c('confirmPassword', '确认密码入参名', self::STR),
-                        $this->c('passwordEncode', '密码加密回调', self::CLOSURE),
-                        $this->c('safety', '前置安全验证回调', self::CLOSURE),
-                        $this->c('success', '成功后置回调', self::CLOSURE),
-                        $this->c('error', '失败后置回调', self::CLOSURE),
-                    ]),
-                    $this->c('login', '登录', self::ARR, [
-                        $this->c('username', '用户名入参名', self::STR),
-                        $this->c('password', '密码入参名', self::STR),
-                        $this->c('passwordEncode', '密码加密回调', self::CLOSURE),
-                        $this->c('safety', '前置安全验证回调', self::CLOSURE),
-                        $this->c('success', '成功后置回调', self::CLOSURE),
-                        $this->c('error', '失败后置回调', self::CLOSURE),
-                    ]),
-                    $this->c('logout', '登出后置回调', self::CLOSURE),
-                    $this->c('checkLogin', '检查登录验证回调', self::CLOSURE),
-                ])
-            ]));
-        }
-
-        //校验配置
-        private function c($name, $nick, $type, $children = [])
-        {
-            return [
-                'name' => $name,
-                'nick' => $nick,
-                'type' => $type,
-                'children' => $children
-            ];
-        }
-    }
-
-    /**
-     * 判断类
-     * Class Is
-     */
-    class Is
-    {
-        /**
-         * 是否闭包
-         * Created by PhpStorm.
-         * @param $closure
-         * @return bool
-         * @author QiuMinMin
-         * Date: 2020/6/27 20:48
-         */
-        public static function closure($closure)
-        {
-            return $closure && get_class($closure) == Closure::class;
-        }
-
-        /**
-         * 是否数组
-         * Created by PhpStorm.
-         * @param $array
-         * @return bool
-         * @author QiuMinMin
-         * Date: 2020/6/27 20:48
-         */
-        public static function array($array)
-        {
-            return $array && gettype($array) == 'array';
-        }
-
-    }
-
-    /**
-     * 系统内置工具API处理类
-     * Class UtilApi
-     */
-    class UtilApiHandler
-    {
-
-        /**
-         * 系统内置上传接口
-         * Created by PhpStorm.
-         * @param array $c
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/5/17 23:06
-         */
-        public function upload(array $c)
-        {
-            $exts = [
-                'php' => ['php'],
-                'image' => ['jpg', 'png', 'jpeg', 'ico', 'gif'],
-            ];
-            $ext = $exts[$c['sence']];
-            $param = $c['fileParam'];
-            $maxSize = $c['maxSize'];
-            $file = Request::instance()->file($param);
-            if (!$file->valid($ext, $maxSize)) {
-                return Result::error($file->getError());
-            }
-            $dir = $c['dir'] ?: '/upload';
-
-            $filename = $dir . '/' . $file->getFileName();
-            if (!$file->move(ROOT_PATH . $filename)) {
-                return Result::error($file->getError());
-            }
-            return Result::success([
-                'url' => $filename
-            ]);
-        }
-
-        /**
-         * 系统内置安全码接口
-         * Created by PhpStorm.
-         * @param array $c
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/5/17 23:06
-         */
-        public function verifyCode(array $c)
-        {
-            $sence = input('sence');
-
-            /**
-             * @var $verifyCode VerifyCode
-             */
-            $verifyCode = config("api.util.verifyCode.{$sence}");
-            if (empty($verifyCode)) {
-                return Result::error('无该场景的验证码');
-            }
-
-            $result = $verifyCode->builder();
-
-            //如果有返回值判断为false则生成失败
-            if (!$result) {
-                return Result::error('获取验证码失败');
-            }
-            return Result::success([]);
-        }
-
-        /**
-         * token api 处理方法
-         * Created by PhpStorm.
-         * @param array $c
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/5/17 23:11
-         */
-        public function token(array $c)
-        {
-            $now = time();
-
-            if (!$c['switch']) {
-                return Result::error('当前已关闭token验证');
-            }
-
-            $lastTime = session('token.last_time') ?: 0;
-            $lastToken = session('token.value');
-            if ($now - $lastTime > $c['interval']) {
-                //超过时间可重新生成新TOKEN
-                $lastToken = md5(base64_encode(substr($now, 0, 8)));
-                session('token.value', $lastToken);
-                session('token.last_time', $now);
-            }
-
-            if (!$lastToken) {
-                return Result::error('当前获取TOKEN频率过快');
-            }
-
-            return Result::success([
-                'token' => $lastToken
-            ]);
-        }
-    }
-
-    /**
-     * 系统内置用户API处理类
-     * Class UserApi
-     */
-    class UserApiHandler
-    {
-        /**
-         * 登录
-         * Created by PhpStorm.
-         * @param array $c
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/5/23 20:52
-         */
-        public function login(array $c)
-        {
-            $appUserConfig = config('app.user');
-
-            $nameParam = $c['username'];
-            $passParam = $c['password'];
-            $passEncode = $c['passwordEncode'];
-            list($table, $field) = explode('.', $appUserConfig['id']);
-            $safety = $c['safety'];
-            $success = $c['success'];
-            $error = $c['error'];
-
-            //用户自定义校验
-            if (Is::closure($safety)) {
-                $array = $safety(input());
-                if (Is::array($array) && !$array[0]) {
-                    return $array;
-                }
-            }
-
-
-            $name = input($nameParam);
-            if (!isset($name) || empty(trim($name))) {
-                return Result::error("登录账户名不能为空");
-            }
-
-            $pass = input($passParam);
-
-            //加密闭包
-            if (Is::closure($passEncode)) {
-                $pass = $passEncode($pass) ?: $pass;
-            }
-
-            $user = dao("/$table/selectOneBy" . ucfirst($nameParam), [
-                $nameParam => $name
-            ]);
-
-            if (!$user) {
-                //调用用户自定义失败回调
-                $error($name);
-                return Result::error('用户不存在');
-            }
-
-            if ($user[$passParam] !== $pass) {
-                return Result::error('密码错误');
-            }
-
-            //调用获取用户信息后的成功回调
-            $result = $success($user);
-            if (!empty($result)) {
-                $error($name);
-                return Result::error('用户不存在');
-            }
-
-            //储存用户ID
-            User::id($user[$field]);
-
-            return Result::success();
-        }
-
-        /**
-         * 登出
-         * Created by PhpStorm.
-         * @param array $c
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/5/23 20:51
-         */
-        public function logout()
-        {
-            return User::logout() ? Result::success() : Result::error();
-        }
-
-        /**
-         * 用户注册处理方法
-         * Created by PhpStorm.
-         * @param array $c
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/6/8 9:00
-         */
-        public function register(array $c)
-        {
-            $username = input($c['username']);
-            $password = input($c['password']);
-            $confirmPassword = input($c['confirmPassword']);
-            $passwordEncode = $c['passwordEncode'];
-
-            $success = $c['success'];
-            $error = $c['error'];
-
-            if (empty($username)) {
-                return Result::error('账户名不能为空');
-            }
-            if (empty($password)) {
-                return Result::error('密码不能为空');
-            }
-            if ($password != $confirmPassword) {
-                return Result::error('两次密码不一致');
-            }
-
-            //用户自定义安全校验
-            $safety = $c['safety'];
-            if (get_class($safety) == Closure::class) {
-                list($result, $error) = $safety(input());
-                if (!$result) {
-                    return Result::error($error);
-                }
-            }
-
-            if (get_class($passwordEncode) == Closure::class) {
-                $password = $passwordEncode($password);
-            }
-            $data = [];
-            $values = $c['values'];
-            if (get_class($values) == Closure::class) {
-                $data = array_merge($data, $values());
-            }
-
-            $data[$c['username']] = $username;
-            $data[$c['password']] = $password;
-
-            list($table, $pk) = explode('.', $c['id']);
-
-            $result = model($table)->insert($data);
-            if ($result == 0) {
-                //失败回调
-                $error($username);
-                return Result::error('注册失败');
-            }
-
-            $user = model($table)
-                ->and($c['username'], $username)
-                ->get();
-
-            //调用用户自定义得成功回调
-            $success($user);
-
-            return Result::success();
-        }
-
-        /**
-         * 检查用户是否已登录接口
-         * Created by PhpStorm.
-         * @return array
-         * @author QiuMinMin
-         * Date: 2020/5/25 5:58
-         */
-        public function checkLogin()
-        {
-            return User::isLogin() ? Result::success() : Result::error();
-        }
-    }
-
-    /**
-     * 程序核心流程
-     * Class App
-     * @package apino
-     */
-    class Core
-    {
-        /**
-         * 主程序执行流程
-         * Created by PhpStorm.
-         * @author QiuMinMin
-         * Date: 2020/5/30 15:33
-         */
-        public static function run()
-        {
-            if (config('app.debug')) {
-                ini_set("display_errors", "On");
-                error_reporting(E_ALL);
-                //配置检查员(app.debug开启后才会执行)
-                ConfigChecker::run();
-            }
-
-            //注册信息
-            self::register();
-
-            //页面不进行直接渲染
-            ob_start();
-
-            //加载用户配置引入文件
-            $files = config('include_file');
-            if(Is::array($files)){
-                foreach ($files as $file){
-                    if(file_exists($file)){
-                        require_once $file;
-                    }
-                }
-            }
-
-            //初始化钩子
-            hook('initialize');
-
-            //获取路由信息
-            $router = Router::route();
-
-            //校验TOKEN(全指定或全不校验)
-            list($success, $result) = Api::checkToken($router);
-            !$success && Response::error($result);
-
-            //校验验证码(仅指定api校验)
-            list($success, $result) = Api::checkVerifyCode($router);
-            !$success && Response::error($result);
-
-            //日志钩子
-            hook('router', [
-                'router' => $router
-            ]);
-
-            //同步当前用户角色权限信息
-            User::syncAuth();
-
-            //权限判断
-            $result = User::hasAuth($router->url());
-
-            //日志钩子
-            hook('authority', [
-                'router' => $router,
-                'userId' => User::id(),
-                'userAuth' => User::authority(),
-                'result' => $result
-            ]);
-
-            if (!$result) {
-                Response::error('当前用户没有该权限');
-            }
-
-            //内置api拦截
-            $result = Api::interceptor($router->controller(), $router->action());
-            if ($result !== false) {
-                $result[0] ? Response::send($result[1]) : Response::error($result[1]);
-            }
-
-            $params = Request::instance()->param();
-
-            //入参校验器
-            list($success, $result) = validate($router->url(), $params);
-            !$success && Response::error($result);
-
-            //入参转换器
-            $params = inputConverter($router->url(), $result);
-
-            //调用相应方法
-            $object = controller($router->url(), $params);
-
-            //响应内容
-            Response::send($object);
-
-            //页面缓存输出
-            ob_end_flush();
-        }
-
-        /**
-         * 注册函数
-         * Created by PhpStorm.
-         * @author QiuMinMin
-         * Date: 2020/8/16 0:28
-         */
-        private static function register()
-        {
-            //注册错误处理函数
-            set_error_handler(config('handler.set_error_handler'));
-            set_exception_handler(config('handler.set_exception_handler'));
-            register_shutdown_function(config('handler.register_shutdown_function'));
-        }
-    }
-
-    /**
-     * JS工具
-     * Class Js
-     */
-    class EmbedJs
-    {
-        /**
-         * JS跳转
-         * Created by PhpStorm.
-         * @param $url
-         * @author QiuMinMin
-         * Date: 2020/7/4 14:44
-         */
-        public function locationHref($url)
-        {
-            echo "<script>location.href='{$url}';</script>";
-        }
-
-        /**
-         * JS弹窗
-         * Created by PhpStorm.
-         * @param $content
-         * @author QiuMinMin
-         * Date: 2020/7/4 14:44
-         */
-        public function alert($content)
-        {
-            echo "<script>alert('$content');</script>";
-        }
-
-        /**
-         * JS打印日志
-         * Created by PhpStorm.
-         * @param $content
-         * @author QiuMinMin
-         * Date: 2020/7/4 14:44
-         */
-        public function consoleLog($content)
-        {
-            echo "<script>console.log('$content')</script>";
-        }
-
-    }
-
-    /**
-     * 请求类
-     * Class EmbedReq
-     */
-    class EmbedReq
-    {
-        /**
-         * post请求
-         * Created by PhpStorm.
-         * @param $url
-         * @param null|Closure $callback
-         * @param array $params
-         * @return array|null
-         * @author QiuMinMin
-         * Date: 2020/7/4 14:44
-         */
-        public function post($url, Closure $callback = null, $params = [])
-        {
-            if (!Request::instance()->isPost()) {
-                return null;
-            }
-            list($success, $result) = controller($url, $params);
-            if (!$callback) {
-                return [$success, $result];
-            }
-            $callback($success, $result);
-            return null;
-        }
-
-        /**
-         * get请求
-         * Created by PhpStorm.
-         * @param $url
-         * @param Closure|null $callback
-         * @param array $params
-         * @return array|null
-         * @author QiuMinMin
-         * Date: 2020/7/4 14:43
-         */
-        public function get($url, Closure $callback = null, $params = [])
-        {
-            if (!Request::instance()->isGet()) {
-                return null;
-            }
-
-            list($success, $result) = controller($url, $params);
-            if ($callback) {
-                $callback($success, $result);
-                return null;
-            } else {
-                return [$success, $result];
-            }
-        }
-
-        public function query($url, Closure $callback, $params = [])
-        {
-            list($success, $result) = controller($url, $params);
-            if ($callback) {
-                $callback($success, $result);
-                return null;
-            } else {
-                return [$success, $result];
-            }
-        }
-    }
-
-    /**
-     * 嵌入页面代码工具类
-     * Class Embed
-     */
-    class Embed
-    {
-        /**
-         * @var EmbedJs
-         */
-        public static $js;
-
-        /**
-         * @var EmbedReq
-         */
-        public static $req;
-
-        /**
-         * Created by PhpStorm.
-         * @param $url
-         * @param array $params
-         * @return mixed
-         * @author QiuMinMin
-         * Date: 2020/8/3 13:02
-         */
-        public static function api($url, $params = [])
-        {
-            list($success, $result) = controller($url, $params);
-            return $result;
-        }
-
-        /**
-         * 地址引用方法，当ID存在则$url为后缀url，否则url为调用url的参数
-         * Created by PhpStorm.
-         * @param $id
-         * @param $url
-         * @return mixed|string|null
-         * @author QiuMinMin
-         * Date: 2020/7/1 20:50
-         */
-        public static function ref($id, $url = '')
-        {
-            $value = null;
-            $urlArray = config('ref');
-            foreach ($urlArray as $urlId => $urlAddress) {
-                if ($urlId == $id) {
-                    $value = $urlAddress;
-                    break;
-                }
-            }
-            return $value ? $value . $url : self::url($url);
-        }
-
-        /**
-         * url组装
-         * Created by PhpStorm.
-         * @param $expression
-         * @return string
-         * @author QiuMinMin
-         * Date: 2020/7/4 14:45
-         */
-        public static function url($expression)
-        {
-            if (strpos($expression, '/') != 0) {
-                $expression = '/' . $expression;
-            }
-            return '/apino.php' . $expression;
-        }
-
-        /**
-         * 生成标签
-         * Created by PhpStorm.
-         * @param $name
-         * @param array $attrs
-         * @param array|string $html
-         * @return string
-         * @author QiuMinMin
-         * Date: 2020/8/8 18:54
-         */
-        public static function tag($name, $attrs = [], $html = '')
-        {
-            if (gettype($html) == 'array') {
-                $html = implode('', $html);
-            }
-
-            $attrsString = '';
-            foreach ($attrs as $name => $value) {
-                $attrsString .= sprintf(' %s = "%s"', $name, $value);
-            }
-            return sprintf('<%s %s>%s</%s>', $name, $attrsString, $html, $name);
-        }
-
-        public function __get($name)
-        {
-            if (empty(self::$name)) {
-                $class = 'Embed' . ucfirst($name);
-                self::$name = new $class();
-            }
-            return self::$name;
-        }
-    }
-
+    callback('event.before_complete');
 
 }

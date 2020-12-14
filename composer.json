@@ -2,6 +2,7 @@
   "require": {
     "phpunit/phpunit": "^7.5",
     "ext-pdo": "*",
-    "ext-json": "*"
+    "ext-json": "*",
+    "ext-gd": "*"
   }
 }
