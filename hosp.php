@@ -2030,12 +2030,12 @@ function _hosp_simple_resolve($express)
 /**
  * @notes 标准表达式解析
  * @param string $express
- * @return string
+ * @return array
  */
 function _hosp_standard_resolve($express)
 {
     $data = [];
-    $subExpressList = [];
+    $subs = [];
     //去除空格
     $expression = str_ireplace(' ', '', $express);
     //取出事件名和子表达式
@@ -2056,94 +2056,107 @@ function _hosp_standard_resolve($express)
         if (count($matches) > 0) {
             //遍历拿出子表达式名和值并进行一一组合
             foreach ($matches[0] as $key => $value) {
-                $subExpressList[$matches[1][$key]] = $matches[2][$key];
+                $subs[$matches[1][$key]] = $matches[2][$key];
             }
         }
     }
 
+    if(isset($subs['by'])){
+        if (preg_match('/[(|&~%]/', $subs['by'])) {
 
-    if (gettype($value) != 'array' && preg_match('/[(|&~%]/', $value)) {
-        //高级模式
-        return $this->highResolverBy($value, $params);
-    } else {
-        //简易模式
-        $str = ' 1=1';
-        foreach ($value as $name => $valueName) {
-            $symbol = '=';
-            if (strpos($name, '!') !== false) {
-                $symbol = '!=';
-                $name = substr($name, 0, strlen($name) - 1);
+            //符号对应的实际字符串
+            $symbolHandlers = [
+                '|' => ' OR ',
+                '&' => ' AND ',
+                '(' => '(',
+                ')' => ')',
+                '' => function ($name, $param) {
+                    return " `{$name}` = '#[{$param}]' ";
+                },
+                '!' => function ($name, $param) {
+                    return " `{$name}` != '#[{$param}]' ";
+
+                },
+                '~' => function ($name, $param) {
+                    return " `{$name}` LIKE '%#[$param]%' ";
+                },
+                '%~' => function ($name, $param) {
+                    return " `{$name}` LIKE '%#[$param]' ";
+                },
+                '~%' => function ($name, $param) {
+                    return " `{$name}` LIKE '#[$param]%' ";
+                },
+                '!~' => function ($name, $param) {
+                    return " `{$name}` NOT LIKE '%#[$param]%' ";
+                },
+                '!%~' => function ($name, $param) {
+                    return " `{$name}` NOT LIKE '%#[$param]' ";
+                },
+                '!~%' => function ($name, $param) {
+                    return " `{$name}` NOT LIKE '#[$param]%' ";
+                },
+            ];
+            $symbols = array_keys($symbolHandlers);
+
+            //区分每个单词（在大写字母前加一个空格，并转成小写）
+            $regex = '/[' . implode('', array_keys($symbols)) . ']/';
+            $byString = preg_replace_callback($regex, function ($matches) {
+                return ' ' . strtolower($matches[0]);
+            }, $subs['by']);
+            $bys = explode(' ', $byString);
+
+            $where = '';
+            foreach ($bys as $i => $by){
+                if(in_array($by, $symbols)){
+                    $bys[$i+1] = [$by, $bys[$i+1]];
+                    continue;
+                }else{
+                    $bys[$i+1] = ['', $bys[$i+1]];
+                    if(!is_array($by)){
+                        $by = ['', $by];
+                    }
+                }
+
+                $handler = $symbolHandlers[$by[0]];
+                if(!is_callable($handler)){
+                    $where .= $handler;
+                    continue;
+                }
+                list($field, $param) = explode(':', $by[1]);
+                if(empty($param)){
+                    $param = $field;
+                }
+                $where .= $handler($field, $param);
             }
-            $str .= " AND `{$name}` {$symbol} '{$params[$valueName]}'";
-        }
-        return $str;
-    }
-}
 
-function hosp_high_by($expression, $params)
-{
-    $symbols = [
-        '|' => ' OR ',
-        '&' => ' AND ',
-        '(' => '(',
-        ')' => ')',
-    ];
-    $templatesHandler = [
-        '' => function ($name, $valueName, $params) {
-            $template = ' #name# = "#value#" ';
-            $valueName = $valueName ?: $name;
-            $value = $params[$valueName];
-            return str_replace(['#name#', '#value#'], [$name, $value], $template);
-        },
-        '!' => function ($name, $valueName, $params) {
-            $template = ' #name# != "#value#" ';
-            $valueName = $valueName ?: $name;
-            $value = $params[$valueName];
-            return str_replace(['#name#', '#value#'], [$name, $value], $template);
-        },
-        '~' => function ($name, $valueName, $params) {
-            $template = ' #name# LIKE "#value#" ';
-            $realName = str_replace('%', '', $name);
-            $valueName = $valueName ?: $realName;
-            $value = str_replace($realName, $params[$valueName], $name);
-            return str_replace(['#name#', '#value#'], [$realName, $value], $template);
-        },
-        '!~' => function ($name, $valueName, $params) {
-            $template = ' #name# NOT LIKE "#value#" ';
-            $realName = str_replace('%', '', $name);
-            $valueName = $valueName ?: $realName;
-            $value = str_replace($realName, $params[$valueName], $name);
-            return str_replace(['#name#', '#value#'], [$realName, $value], $template);
-        },
-    ];
-
-    $newExp = '';
-
-    //使用模式
-    $prefix = '';
-    //单词
-    $word = '';
-    for ($i = 0; $i < strlen($expression); $i++) {
-        $char = substr($expression, $i, 1);
-
-        if (in_array($char, array_keys($symbols))) {
-            //处理mod和word
-            //获取格式
-            if (!empty($word)) {
-                $handler = $templatesHandler[$prefix];
-                list($name, $valueName) = explode(':', $word);
-                $newExp .= $handler($name, $valueName, $params);
-            }
-            $newExp .= $symbols[$char];
-            $word = '';
-            $prefix = '';
+            $subs['by'] = $where;
         } else {
-            if (in_array($char, array_keys($templatesHandler))) {
-                $prefix .= $char;
-            } else {
-                $word .= $char;
+            //区分每个单词（在大写字母前加一个空格，并转成小写）
+            $byString = preg_replace_callback('/[A-Z!]/', function ($matches) {
+                return ' ' . strtolower($matches[0]);
+            }, $subs['by']);
+            $bys = explode(' ', $byString);
+
+            //简易模式
+            $where = ' 1=1';
+            foreach ($bys as $i => $field) {
+                if($field == '!'){
+                    $bys[$i + 1] = ['!=', $bys[$i + 1]];
+                    continue;
+                }else{
+                    $bys[$i + 1] = ['=', $bys[$i + 1]];
+                    if(!is_array($field)){
+                        $field = ['=', $field];
+                    }
+                }
+                $symbol = $field[0];
+                $field = $field[1];
+
+                $where .= " AND {$field} {$symbol} '#[{$field}]'";
             }
+            $subs['by'] = $where;
         }
     }
-    return $newExp;
+
+    return $data;
 }
