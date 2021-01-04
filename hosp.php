@@ -77,9 +77,7 @@ config('database', [
         //自动关联查询，设定关联后会自动查询或者遵守格式(user_id为用户表的ID字段，user_ids则为用户表的ID集合，值格式为(1,2,3,4))
         'query' => [
             //源ID(主键) => [外键1 => 关系1, 外键2 => 关系2]
-            'hisi_user.role_id' => [
-                'hisi_role.id' => ONE_TO_ONE,
-            ],
+            'user.role_id' => 'role.id',
         ],
     ],
 ]);
@@ -1740,49 +1738,41 @@ function _db_auto_timestamp($table, $insert = false)
  */
 function _db_auto_query($table, $data)
 {
-    $config = config('database.auto.query');
-    if (is_array($config) && count($config) == 0) {
+    $queryList = config('database.auto_event.query');
+    if (is_array($queryList) && count($queryList) == 0) {
         return $data;
     }
 
-    /**
-     * @example [内键 => [外表, 外键, 关系], ...]
-     */
-    $relationDataList = [];
-
-    foreach ($config as $foreignKey => $internalKeys) {
-        list($foreignTrueTableName, $foreignKey) = explode('.', $foreignKey);
-        foreach ($internalKeys as $internalKey => $relation) {
-            list($trueTableName, $internalKey) = explode('.', $internalKey);
-            if ($this->trueTableName != $trueTableName) {
-                continue;
-            }
-            $relationDataList[$internalKey] = [$foreignTrueTableName, $foreignKey, $relation];
+    $relations = [];
+    foreach ($queryList as $name => $value) {
+        list($tempTable, $fk) = explode('.', $name);
+        if($table != $tempTable){
+            continue;
         }
+        $relations[$fk] = $value;
     }
-    if (count($relationDataList) == 0) {
+    if (count($relations) == 0) {
         return $data;
     }
 
     foreach ($data as &$record) {
-        foreach ($relationDataList as $field => $relation) {
-            if (!isset($record[$field])) {
+        foreach ($relations as $fk => $relation) {
+            if (!isset($record[$fk])) {
                 continue;
             }
-            list($tempTable, $foreignKey, $relation) = $relation;
+            list($relationTable, $foreignKey) = $relation;
             $result = mysql_select(
-                $tempTable,
+                config('database.prefix') . $relationTable,
                 '',
-                "$foreignKey = {$record[$field]}",
+                "$foreignKey = {$record[$fk]}",
                 '',
                 '',
                 $relation == ONE_TO_ONE ? 1 : ''
             );
-            $record['relation'][$field] = $relation == ONE_TO_ONE ? $result[0] : $result;
+            $record['relation'][$relationTable] = $relation == ONE_TO_ONE ? $result[0] : $result;
         }
-
-        unset($record);
     }
+    unset($record);
     return $data;
 }
 
