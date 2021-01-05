@@ -358,7 +358,11 @@ function config($name = '', $value = '')
  */
 function session($name = null, $value = '')
 {
-    session_start();
+    if(session_status() == PHP_SESSION_DISABLED){
+        session_start();
+    }
+
+
     if (empty($name)) {
         return $_SESSION['apino'];
     }
@@ -474,9 +478,9 @@ function input($name = null, $default = null)
         $string = substr($url, $index);
         $urlParams = [];
         foreach (explode("&", $string) as $item) {
-            list($name, $value) = explode("=", $item);
-            if (isset($name) && isset($value)) {
-                $urlParams[$name] = $value;
+            list($tempName, $value) = explode("=", $item);
+            if (isset($tempName) && isset($value)) {
+                $urlParams[$tempName] = $value;
             }
         }
 
@@ -486,12 +490,133 @@ function input($name = null, $default = null)
 
         $GLOBALS['REQUEST_PARAMS'] = array_merge($urlParams, $_GET, $_POST, $json);
     }
-
-    if ($name == null) {
-        return $this->params;
+    if ($name === null) {
+        return $GLOBALS['REQUEST_PARAMS'];
     }
     return isset($GLOBALS['REQUEST_PARAMS'][$name]) ? $GLOBALS['REQUEST_PARAMS'][$name] : $default;
 }
+
+/**
+ * 数组转入参字符串
+ * @param $params array
+ * @return string
+ */
+function array_to_get_string($params){
+    $paramsStr = '';
+    foreach ($params as $name => $value) {
+        $paramsStr .= "&{$name}={$value}";
+    }
+    $paramsStr = '?' . substr($paramsStr, 1);
+    return $paramsStr;
+}
+
+
+/**
+ * url组装，优先使用注册的url
+ * @param $url
+ * @param array $params 拼接参数
+ * @return string
+ */
+function url($url, $params = [])
+{
+    $urls = config('url');
+    foreach ($urls as $name => $value) {
+        if ($url == $name) {
+            $url = $value;
+            break;
+        }
+    }
+
+    if (substr($url, 0, 1) != '/') {
+        $url = '/' . $url;
+    }
+
+    $url = '/' . FILE_NAME . '.php' . $url;
+
+    if (count($params)) {
+        $url .= array_to_get_string($params);
+    }
+
+    return urlencode($url);
+}
+
+/**
+ * @notes 处理响应内容
+ * @param $data
+ * @param $type
+ * @return string
+ */
+function _response($data, $type = 'json')
+{
+    $response = null;
+    switch ($type) {
+        case 'json':
+            $response = json_encode($data, JSON_UNESCAPED_UNICODE);
+            break;
+        case 'html':
+            $response = $data;
+            break;
+    }
+    if (is_null($response)) {
+        _error('无响应内容');
+    }
+    return $response;
+}
+
+/** Response */
+/**
+ * @notes action 出参包装
+ * @param string $msg
+ * @param int $code
+ * @return false|string|null
+ */
+function error($msg = '', $code = 1)
+{
+    return _response([
+        'msg' => $msg,
+        'code' => $code
+    ], 'json');
+}
+
+/**
+ * @notes action 出参包装
+ * @param array $data
+ * @param int $code
+ * @param string $msg
+ * @return false|string|null
+ */
+function success($data = [], $code = 0, $msg = '')
+{
+    return _response([
+        'data' => $data,
+        'code' => $code,
+        'msg' => $msg
+    ], 'json');
+}
+
+
+/** Package */
+/**
+ * @notes 成功
+ * @param array $data
+ * @return array
+ */
+function true($data = [])
+{
+    return [true, $data];
+}
+
+/**
+ * @notes 失败
+ * @param string $msg
+ * @return array
+ */
+function false($msg = '')
+{
+    return [false, $msg];
+}
+
+
 
 /**
  * @notes 上传文件保存
@@ -500,7 +625,7 @@ function input($name = null, $default = null)
  * @return bool
  * @author EdwardCho
  */
-function upload_file_move($name, $destination)
+function upload_file_move(string $name, string $destination)
 {
     if (!isset($_FILES[$name])) {
         _error("{$name}文件不存在");
@@ -569,126 +694,6 @@ function upload_file_valid($name, $exts = [], $maxSize = null)
 }
 
 
-/**
- * url组装，优先使用注册的url
- * @param $url
- * @param array $params 拼接参数
- * @return string
- */
-function url($url, $params = [])
-{
-    $urls = config('url');
-    foreach ($urls as $name => $value) {
-        if ($url == $name) {
-            $url = $value;
-            break;
-        }
-    }
-
-    if (substr($url, 0, 1) != '/') {
-        $url = '/' . $url;
-    }
-
-    $url = '/' . FILE_NAME . '.php' . $url;
-
-    if (count($params)) {
-        $url .= array_to_get_string($params);
-    }
-
-    return urlencode($url);
-}
-
-/**
- * 数组转入参字符串
- * @param $params array
- * @return string
- */
-function array_to_get_string($params){
-    $paramsStr = '';
-    foreach ($params as $name => $value) {
-        $paramsStr .= "&{$name}={$value}";
-    }
-    $paramsStr = '?' . substr($paramsStr, 1);
-    return $paramsStr;
-}
-
-/** Response */
-/**
- * @notes action 出参包装
- * @param string $msg
- * @param int $code
- * @return false|string|null
- */
-function error($msg = '', $code = 1)
-{
-    return _response([
-        'msg' => $msg,
-        'code' => $code
-    ], 'json');
-}
-
-/**
- * @notes action 出参包装
- * @param array $data
- * @param int $code
- * @param string $msg
- * @return false|string|null
- */
-function success($data = [], $code = 0, $msg = '')
-{
-    return _response([
-        'data' => $data,
-        'code' => $code,
-        'msg' => $msg
-    ], 'json');
-}
-
-/**
- * @notes 输出JSON对象
- * @param $code
- * @param $data
- * @param $msg
- * @return void
- */
-function json($code = 0, $data = [], $msg = '')
-{
-    $object = [
-        'code' => $code,
-        'data' => $data,
-        'msg' => $msg
-    ];
-    //日志钩子
-    hook('complete', [
-        'response' => $object
-    ]);
-
-    exit(json_encode($object, JSON_UNESCAPED_UNICODE));
-}
-
-/**
- * @notes 处理响应内容
- * @param $data
- * @param $type
- * @return string
- */
-function _response($data, $type = 'json')
-{
-    $response = null;
-    switch ($type) {
-        case 'json':
-            $response = json_encode($data, JSON_UNESCAPED_UNICODE);
-            break;
-        case 'html':
-            $response = $data;
-            break;
-    }
-    if (is_null($response)) {
-        _error('无响应内容');
-    }
-    return $response;
-}
-
-
 /** User */
 /**
  * @notes ID
@@ -697,7 +702,11 @@ function _response($data, $type = 'json')
  */
 function user_id($id = '')
 {
-    return session('user_id', $id);
+    if($id === ''){
+        return session('user_id');
+    }else{
+        return session('user_id', $id);
+    }
 }
 
 /**
@@ -737,7 +746,7 @@ function user_role($role = '')
  * @param array|bool|mixed $authority
  * @return array|bool|void
  */
-function _user_authority($authority = [])
+function _user_authority($authority = '')
 {
     return session('user_authority', $authority);
 }
@@ -837,33 +846,13 @@ function verify_code_check($code)
 }
 
 
-/** Package */
-/**
- * @notes 成功
- * @param array $data
- * @return array
- */
-function true($data = [])
-{
-    return [true, $data];
-}
-
-/**
- * @notes 失败
- * @param string $msg
- * @return array
- */
-function false($msg = '')
-{
-    return [false, $msg];
-}
-
 
 /** Framework */
 
 /** 框架初始化 */
 function _init()
 {
+    error_reporting(E_ERROR);
 
     define('MICRO_TIME', microtime(true));
     define('TIME', intval(MICRO_TIME));
@@ -1076,7 +1065,8 @@ function _router($route)
         $currentMethod = '*';
     }
 
-    $route = config('route');
+
+    $route = config('router');
 
     foreach ($route as $before => $after) {
 
@@ -1095,9 +1085,9 @@ function _router($route)
         //第二种后模糊
         $flag2 = $currentController == $beforeController && $beforeMethod == '*';
         //第三种前模糊
-        $flag3 = $currentController == '*' && $currentMethod == $beforeMethod;
+        $flag3 = $beforeController == '*' && $currentMethod == $beforeMethod;
         //第四种全模糊
-        $flag4 = $currentController == '*' && $currentMethod == '*';
+        $flag4 = $beforeController == '*' && $beforeMethod == '*';
 
         if ($flag1 || $flag2 || $flag3 || $flag4) {
             //路由转发支持转发到其他http网站
@@ -1111,10 +1101,10 @@ function _router($route)
             list($temp, $controller, $method) = explode('/', $after);
             unset($temp);
 
-            if(empty($controller)){
+            if(empty($controller) || $controller === '*'){
                 $controller = $currentController;
             }
-            if(empty($method)){
+            if(empty($method) || $method === '*'){
                 $method = $currentMethod;
             }
 

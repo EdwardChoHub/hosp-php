@@ -1,6 +1,8 @@
-<phpunit bootstrap="tests/bootstrap.php">
+<phpunit printerClass="Codedungeon\PHPUnitPrettyResultPrinter\Printer"
+        bootstrap="tests/bootstrap.php"
+>
     <testsuites>
-        <testsuite name="money">
+        <testsuite name="hosp">
             <directory>tests</directory>
         </testsuite>
     </testsuites>
