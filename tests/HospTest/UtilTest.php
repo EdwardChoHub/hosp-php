@@ -3,6 +3,7 @@
 namespace HospTest;
 
 use PHPUnit\Framework\TestCase;
+use function hosp\_callback;
 use function hosp\_response;
 use function hosp\array_to_get_string;
 use function hosp\config;
@@ -135,4 +136,13 @@ class UtilTest extends TestCase
         $this->assertEquals($msg, $result[1]);
     }
 
+    public function testCallback()
+    {
+        config('test.callback', function () {
+            return 1;
+        });
+
+        $this->assertEquals(1, _callback('test.callback', []));
+
+    }
 }

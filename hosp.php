@@ -440,6 +440,26 @@ function log($content, $filename)
     fclose($file);
 }
 
+/**
+ * @notes 函数调用
+ * @param $name string 函数配置名
+ * @param array $args
+ * @return mixed
+ */
+function _callback(string $name, $args = [])
+{
+    try {
+        $callback = config($name);
+        if (is_callable($callback)) {
+            $reflectFunction = new ReflectionFunction($callback);
+            return $reflectFunction->invokeArgs($args);
+        }
+    } catch (Exception $e) {
+        _error("调用{$name}函数异常");
+    }
+
+}
+
 /** Request */
 
 /**
@@ -1146,24 +1166,6 @@ function _check_config()
     }
 }
 
-/**
- * @notes 函数调用
- * @param $name string 函数配置名
- * @param array $args
- */
-function _callback($name, $args = [])
-{
-    try {
-        $callback = config($name);
-        if (is_callable($callback)) {
-            $reflectFunction = new ReflectionFunction($callback);
-            $reflectFunction->invokeArgs($args);
-        }
-    } catch (Exception $e) {
-        _error("调用{$name}函数异常");
-    }
-
-}
 
 
 /** API操作 */
