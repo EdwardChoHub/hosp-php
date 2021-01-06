@@ -6,9 +6,19 @@ namespace HospTest;
 
 use function hosp\_router;
 use function hosp\config;
+use function hosp\router;
 
 class TestRouter extends TestCase
 {
+    public function testRouterRegister()
+    {
+        $before = '/a/b';
+        $after = '/a/c';
+        router($before, $after);
+        $router = config('router');
+        $this->assertEquals($after, $router[$before]);
+    }
+
     public function testRouterNone()
     {
         $controller = 'a';
@@ -29,7 +39,8 @@ class TestRouter extends TestCase
         $this->assertEquals('c', $router[1]);
     }
 
-    public function testRouterControllerVague(){
+    public function testRouterControllerVague()
+    {
         $controller = 'a';
         $method = 'b';
         config('router', ['/*/b' => '/a/c']);
@@ -38,7 +49,8 @@ class TestRouter extends TestCase
         $this->assertEquals('c', $router[1]);
     }
 
-    public function testRouterMethodVague(){
+    public function testRouterMethodVague()
+    {
         $controller = 'a';
         $method = 'b';
         config('router', ['/a/*' => '/a/c']);
@@ -47,7 +59,8 @@ class TestRouter extends TestCase
         $this->assertEquals('c', $router[1]);
     }
 
-    public function testRouterVague(){
+    public function testRouterVague()
+    {
         $controller = 'a';
         $method = 'b';
         config('router', ['/a/*' => '/b/*']);

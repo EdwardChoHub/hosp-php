@@ -100,14 +100,14 @@ config('authority', [
      * @notes 角色权限控制(支持静态权限和动态权限)
      * @return array
      */
-    'access' => function(){
+    'access' => function () {
         //用户自定义权限
     },
     /**
      * @notes 不拦截列表
      * @return array
      */
-    'except' => function(){
+    'except' => function () {
 
     },
 ]);
@@ -358,7 +358,7 @@ function config($name = '', $value = '')
  */
 function session($name = null, $value = '')
 {
-    if(session_status() == PHP_SESSION_DISABLED){
+    if (session_status() == PHP_SESSION_DISABLED) {
         session_start();
     }
 
@@ -521,7 +521,8 @@ function input($name = null, $default = null)
  * @param $params array
  * @return string
  */
-function array_to_get_string($params){
+function array_to_get_string($params)
+{
     $paramsStr = '';
     foreach ($params as $name => $value) {
         $paramsStr .= "&{$name}={$value}";
@@ -636,7 +637,19 @@ function false($msg = '')
     return [false, $msg];
 }
 
-
+/**
+ * 注册路由器
+ * @param $before
+ * @param $after
+ * @author EdwardCho
+ */
+function router($before, $after)
+{
+    $router = config('router');
+    $router = is_null($router) ? [] : $router;
+    $router = array_merge($router, [$before => $after]);
+    config('router', $router);
+}
 
 /**
  * @notes 上传文件保存
@@ -696,7 +709,7 @@ function upload_file_name_ext($name)
  * @return array
  * @author EdwardCho
  */
-function upload_file_valid($name, $exts = [], $maxSize = null)
+function upload_file_valid(string $name, $exts = [], $maxSize = null)
 {
     $file = $_FILES[$name];
     if (!isset($file)) {
@@ -722,9 +735,9 @@ function upload_file_valid($name, $exts = [], $maxSize = null)
  */
 function user_id($id = '')
 {
-    if($id === ''){
+    if ($id === '') {
         return session('user_id');
-    }else{
+    } else {
         return session('user_id', $id);
     }
 }
@@ -758,7 +771,7 @@ function user_logout()
  */
 function user_role($role = '')
 {
-    return $role === '' ?session('user_role') : session('user_role', $role);
+    return $role === '' ? session('user_role') : session('user_role', $role);
 }
 
 /**
@@ -866,7 +879,6 @@ function verify_code_check($code)
 }
 
 
-
 /** Framework */
 
 /** 框架初始化 */
@@ -960,6 +972,7 @@ function _init()
         }
         define('ID', $id);
     }
+
 }
 
 /** 框架执行 */
@@ -1075,13 +1088,13 @@ function _route()
 function _router($route)
 {
     list($currentController, $currentMethod) = $route;
-    if(is_null($currentController)){
+    if (is_null($currentController)) {
         $currentController = config('app.default_controller');
     }
-    if(is_null($currentMethod)){
+    if (is_null($currentMethod)) {
         $currentMethod = config('app.default_method');
     }
-    if($currentMethod === ''){
+    if ($currentMethod === '') {
         $currentMethod = '*';
     }
 
@@ -1121,10 +1134,10 @@ function _router($route)
             list($temp, $controller, $method) = explode('/', $after);
             unset($temp);
 
-            if(empty($controller) || $controller === '*'){
+            if (empty($controller) || $controller === '*') {
                 $controller = $currentController;
             }
-            if(empty($method) || $method === '*'){
+            if (empty($method) || $method === '*') {
                 $method = $currentMethod;
             }
 
@@ -1165,7 +1178,6 @@ function _check_config()
         }
     }
 }
-
 
 
 /** API操作 */
@@ -1283,6 +1295,58 @@ function model($express, $params = [])
 /** Database */
 
 /**
+ * @notes 测试模式，不执行语句，并且
+ * @param bool|mixed $bool
+ * @return mixed
+ * @author EdwardCho
+ */
+function _mysql_test($bool = '')
+{
+    if ($bool === '') {
+        return $GLOBALS['mysql_mock'];
+    } else {
+        $GLOBALS['mysql_mock'] = $bool;
+    }
+}
+
+/**
+ * @notes 初始化历史记录
+ * @author EdwardCho
+ */
+function _init_mysql_history()
+{
+    if (!isset($GLOBALS['mysql_history'])) {
+        $GLOBALS['mysql_history'] = [];
+    }
+}
+
+/**
+ * @notes 执行记录
+ * @param string $sql
+ * @return array|mixed
+ * @author EdwardCho
+ */
+function mysql_history($sql = '')
+{
+    _init_mysql_history();
+    if ($sql === '') {
+        return $GLOBALS['mysql_history'];
+    } else {
+        array_unshift($GLOBALS['mysql_history'], $sql);
+    }
+}
+
+/**
+ * 返回最近一条的sql
+ * @author EdwardCho
+ */
+function get_last_sql()
+{
+    _init_mysql_history();
+    return isset($GLOBALS['mysql_history'][0]) ? $GLOBALS['mysql_history'][0] : null;
+}
+
+/**
  * @notes 获取PDO实例
  * @return PDO
  * @author EdwardCho
@@ -1312,9 +1376,14 @@ function _mysql()
  */
 function mysql_exec($sql)
 {
+    /** 记录执行的SQL */
+    mysql_history($sql);
 
+    if (_mysql_test()) {
+        log('run test :' . $this->sql, 'sql');
+        return false;
+    }
     try {
-        $this->connect();
 
         $result = _mysql()->prepare($sql);
 
@@ -1497,12 +1566,11 @@ function db_insert($table, $data)
 {
 
     //自动插入时间戳
-    $data = array_merge($data, _db_auto_timestamp($table,true));
+    $data = array_merge($data, _db_auto_timestamp($table, true));
     //补全插入
     $data = _db_complete_insert($table, $data);
     return mysql_insert($table, $data);
 }
-
 
 /**
  * @notes 查单
@@ -1576,7 +1644,7 @@ function db_field($table, $where, $field)
 /**
  * @notes 获取表字段
  * @param $table
- * @return array
+ * @return false|array
  */
 function _db_table_fileds($table)
 {
@@ -1586,7 +1654,11 @@ function _db_table_fileds($table)
         $table,
         config('database.dbname')
     );
-    return array_column(mysql_exec($sql), 'COLUMN_NAME');
+    $result = mysql_exec($sql);
+    if (is_bool($result)) {
+        return $result;
+    }
+    return array_column($result, 'COLUMN_NAME');
 }
 
 /**
@@ -1656,7 +1728,7 @@ function _db_complete_insert($table, $data)
 /**
  * 查询表字段默认值
  * @param $table
- * @return array
+ * @return false
  * @author EdwardCho
  */
 function _db_table_default_values($table)
@@ -1669,6 +1741,9 @@ function _db_table_default_values($table)
         config('database.dbname')
     );
     $fields = mysql_exec($sql);
+    if (is_bool($fields)) {
+        return false;
+    }
     $fieldValues = [];
     foreach ($fields as $field) {
         $fieldName = $field['COLUMN_NAME'];
@@ -1738,7 +1813,7 @@ function _db_auto_query($table, $data)
     $relations = [];
     foreach ($queryList as $name => $value) {
         list($tempTable, $fk) = explode('.', $name);
-        if($table != $tempTable){
+        if ($table != $tempTable) {
             continue;
         }
         $relations[$fk] = $value;
@@ -1794,10 +1869,13 @@ function hosp($express, $params = [])
  * @return string
  * @author EdwardCho
  */
-function _hosp_exec($sql, $options = [])
+function _hosp_exec(string $sql, $options = [])
 {
 
     $result = mysql_exec($sql);
+    if (is_bool($result)) {
+        $result = false;
+    }
     if (is_numeric($result)) {
         return $result;
     }
@@ -1823,7 +1901,7 @@ function _hosp_exec($sql, $options = [])
  * @return array
  * @example 'select { only[user_id,id,name] none[nick]by[user_id,noned_id,ip] }'
  */
-function _hosp_resolve($expression, $params)
+function _hosp_resolve(string $expression, array $params)
 {
     list($temp, $table, $expression) = explode('/', $expression);
     unset($temp);
@@ -1949,7 +2027,7 @@ function _hosp_resolve($expression, $params)
  * @return mixed
  * @example selectById|selectListByUser_idUsername|insert|delete|updateByUserSetName
  */
-function _hosp_simple_resolve($express)
+function _hosp_simple_resolve(string $express)
 {
     $data = [];
 
@@ -2024,7 +2102,7 @@ function _hosp_simple_resolve($express)
  * @param string $express
  * @return array
  */
-function _hosp_standard_resolve($express)
+function _hosp_standard_resolve(string $express)
 {
     $data = [];
     $subs = [];
@@ -2053,7 +2131,7 @@ function _hosp_standard_resolve($express)
         }
     }
 
-    if(isset($subs['by'])){
+    if (isset($subs['by'])) {
         if (preg_match('/[(|&~%]/', $subs['by'])) {
 
             //符号对应的实际字符串
@@ -2098,24 +2176,24 @@ function _hosp_standard_resolve($express)
             $bys = explode(' ', $byString);
 
             $where = '';
-            foreach ($bys as $i => $by){
-                if(in_array($by, $symbols)){
-                    $bys[$i+1] = [$by, $bys[$i+1]];
+            foreach ($bys as $i => $by) {
+                if (in_array($by, $symbols)) {
+                    $bys[$i + 1] = [$by, $bys[$i + 1]];
                     continue;
-                }else{
-                    $bys[$i+1] = ['', $bys[$i+1]];
-                    if(!is_array($by)){
+                } else {
+                    $bys[$i + 1] = ['', $bys[$i + 1]];
+                    if (!is_array($by)) {
                         $by = ['', $by];
                     }
                 }
 
                 $handler = $symbolHandlers[$by[0]];
-                if(!is_callable($handler)){
+                if (!is_callable($handler)) {
                     $where .= $handler;
                     continue;
                 }
                 list($field, $param) = explode(':', $by[1]);
-                if(empty($param)){
+                if (empty($param)) {
                     $param = $field;
                 }
                 $where .= $handler($field, $param);
@@ -2132,12 +2210,12 @@ function _hosp_standard_resolve($express)
             //简易模式
             $where = ' 1=1';
             foreach ($bys as $i => $field) {
-                if($field == '!'){
+                if ($field == '!') {
                     $bys[$i + 1] = ['!=', $bys[$i + 1]];
                     continue;
-                }else{
+                } else {
                     $bys[$i + 1] = ['=', $bys[$i + 1]];
-                    if(!is_array($field)){
+                    if (!is_array($field)) {
                         $field = ['=', $field];
                     }
                 }

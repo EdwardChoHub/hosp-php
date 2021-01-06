@@ -12,6 +12,7 @@ use function hosp\false;
 use function hosp\input;
 use function hosp\is_get;
 use function hosp\is_post;
+use function hosp\router;
 use function hosp\session;
 use function hosp\success;
 use function hosp\true;
