@@ -339,7 +339,11 @@ function config($name = '', $value = '')
             }
             $config = &$config[$indexList[$i]];
         }
-        $config[$indexList[$count - 1]] = $value;
+        if(is_array($config[$indexList[$count - 1]]) && is_array($value)){
+            $config[$indexList[$count - 1]] = array_merge($config[$indexList[$count - 1]], $value);
+        }else{
+            $config[$indexList[$count - 1]] = $value;
+        }
         return null;
     } else {
         $config = $data;
@@ -511,12 +515,36 @@ function input($name = null, $default = null)
         $json = json_decode(file_get_contents("php://input"), true);
         $json = empty($json) ? [] : $json;
 
-        $GLOBALS['REQUEST_PARAMS'] = array_merge($urlParams, $_GET, $_POST, $json);
+        $params = array_merge($urlParams, $_GET, $_POST, $json);
+
+        $GLOBALS['REQUEST_PARAMS'] = _input_filter($params);
+
     }
     if ($name === null) {
         return $GLOBALS['REQUEST_PARAMS'];
     }
     return isset($GLOBALS['REQUEST_PARAMS'][$name]) ? $GLOBALS['REQUEST_PARAMS'][$name] : $default;
+}
+
+/**
+ * @notes 参数过滤
+ * @param $params array
+ * @return mixed
+ * @author EdwardCho
+ */
+function _input_filter(array $params){
+    $filters = config('app.default_filter');
+    $filters = explode(',', $filters);
+    foreach ($params as $name => $value){
+        foreach ($filters as $filter){
+            if(empty($filter)){
+                continue;
+            }
+            $value = call_user_func($filter, $value);
+        }
+        $params[$name] = $value;
+    }
+    return $params;
 }
 
 /**
@@ -533,7 +561,6 @@ function array_to_get_string(array $params)
     $paramsStr = '?' . substr($paramsStr, 1);
     return $paramsStr;
 }
-
 
 /**
  * url组装，优先使用注册的url
@@ -617,7 +644,6 @@ function success($data = [], $code = 0, $msg = '')
         'msg' => $msg
     ], 'json');
 }
-
 
 /** Package */
 /**
@@ -1167,29 +1193,6 @@ function _error($content)
     _end($content);
 }
 
-/**
- * @notes 检查配置项(仅开发模式检查)
- * @author EdwardCho
- *
- */
-function _check_config()
-{
-    $ruleList = [
-        ['类型名', '地址', '判断函数', '错误提示'],
-        ['开发模式', 'app.debug', 'is_bool', '开发模式必须为布尔型'],
-    ];
-
-    //除去第一行标题
-    array_shift($ruleList);
-
-    foreach ($ruleList as $rule) {
-        if (!call_user_func($ruleList[2], config($rule[1]))) {
-            _error($rule[3]);
-        }
-    }
-}
-
-
 /** API操作 */
 
 /**
@@ -1305,21 +1308,6 @@ function model($express, $params = [])
 /** Database */
 
 /**
- * @notes 测试模式，不执行语句，并且
- * @param bool|mixed $bool
- * @return mixed
- * @author EdwardCho
- */
-function _mysql_test($bool = '')
-{
-    if ($bool === '') {
-        return $GLOBALS['mysql_mock'];
-    } else {
-        $GLOBALS['mysql_mock'] = $bool;
-    }
-}
-
-/**
  * @notes 初始化历史记录
  * @author EdwardCho
  */
@@ -1363,20 +1351,21 @@ function get_last_sql()
  */
 function _mysql()
 {
-    if (!defined('PDO_MYSQL')) {
+    if (!$GLOBALS['PDO_MYSQL']) {
+        $config = config('database');
         //mysql连接
         $dsn = sprintf("%s:host=%s;port=%s;dbname=%s",
-            $this->type, $this->host,
-            $this->port, $this->dbname
+            $config['type'], $config['host'],
+            $config['port'], $config['dbname']
         );
-        $pdo = new PDO($dsn, $this->username, $this->password);
+        $pdo = new PDO($dsn, $config['username'], $config['password']);
         //编码
-        $pdo->exec(sprintf("set names %s", $this->charset));
+        $pdo->exec(sprintf("set names %s", $config['charset']));
         //持久化连接
         $pdo::ATTR_PERSISTENT;
-        define('PDO_MYSQL', $pdo);
+        $GLOBALS['PDO_MYSQL'] = $pdo;
     }
-    return PDO_MYSQL;
+    return $GLOBALS['PDO_MYSQL'];
 }
 
 /**
@@ -1389,12 +1378,9 @@ function mysql_exec($sql)
     /** 记录执行的SQL */
     mysql_history($sql);
 
-    if (_mysql_test()) {
-        log('run test :' . $this->sql, 'sql');
-        return false;
-    }
-    try {
+    _callback('event.before_sql', ['sql' => $sql]);
 
+    try {
         $result = _mysql()->prepare($sql);
 
         $result->execute();
@@ -1402,24 +1388,20 @@ function mysql_exec($sql)
         $errorInfo = $result->errorInfo();
 
         if ($errorInfo[2] != null) {
-            _error($errorInfo[2]);
+            throw new Exception($errorInfo[2]);
         }
-
-        $result = stripos($this->sql, 'select')
+        $result = stripos($sql, 'select') !== false
             ? $result->fetchAll(PDO::FETCH_ASSOC)
             : $result->rowCount();
 
-        //钩子
-        hook('sql', [
-            'sql' => $this->sql
-        ]);
+        _callback('event.after_sql', ['sql' => $sql, 'result' => $result]);
 
         //执行日志
-        log('run true :' . $this->sql, 'sql');
+        log('run true :' . $sql, 'sql');
 
     } catch (Exception $e) {
-        log('run false :' . $this->sql, 'sql');
-        _error($e->getMessage());
+        log('run false :' . $sql, 'sql');
+        log('error_info :' . $e->getMessage(), 'sql');
         return false;
     }
 
@@ -1454,7 +1436,11 @@ function mysql_insert($table, $data)
  */
 function mysql_delete($table, $where)
 {
-    return mysql_exec(sprintf('DELETE FROM `%s` WHERE 1=1 %s', $table, $where));
+    $sql = "DELETE FROM `{$table}` ";
+    if(!empty(trim($where))){
+        $sql .= 'WHERE ' . $where;
+    }
+    return mysql_exec($sql);
 }
 
 /**
@@ -1492,29 +1478,32 @@ function mysql_select($table, $field = '', $where = '', $order = '', $group = ''
 {
     $sql = "SELECT ";
 
-    $field = empty($field) ? '*' : $field;
+    $field = empty(trim($field)) ? '*' : $field;
     $sql .= $field;
 
     $sql .= ' FROM ' . $table;
 
-    if (!empty($where)) {
+    if (!empty(trim($where))) {
         $sql .= ' WHERE ' . $where;
     }
-    if (!empty($order)) {
-        $sql .= ' ORDER BY ' . $order;
-    }
-    if (!empty($group)) {
-        $sql .= ' GROUP BY ' . $group;
-    }
-    if (!empty($limit)) {
-        $sql .= ' LIMIT ' . $limit;
-    }
-    if (!empty($limit)) {
+    if (!empty(trim($having))) {
         $sql .= ' HAVING ' . $having;
     }
+    if (!empty(trim($order))) {
+        $sql .= ' ORDER BY ' . $order;
+    }
+    if (!empty(trim($group))) {
+        $sql .= ' GROUP BY ' . $group;
+    }
+
+    if (!empty(trim($limit))) {
+        $sql .= ' LIMIT ' . $limit;
+    }
+
 
     return mysql_exec($sql);
 }
+
 
 /**
  * @notes 查
@@ -1738,7 +1727,7 @@ function _db_complete_insert($table, $data)
 /**
  * 查询表字段默认值
  * @param $table
- * @return false
+ * @return false|array
  * @author EdwardCho
  */
 function _db_table_default_values($table)
@@ -2239,4 +2228,28 @@ function _hosp_standard_resolve(string $express)
     }
 
     return $data;
+}
+
+
+
+/**
+ * @notes 检查配置项(仅开发模式检查)
+ * @author EdwardCho
+ *
+ */
+function _check_config()
+{
+    $ruleList = [
+        ['类型名', '地址', '判断函数(|分隔，满足一个即可)', '错误提示'],
+        ['开发模式', 'app.debug', 'is_bool', '开发模式必须为布尔型'],
+    ];
+
+    //除去第一行标题
+    array_shift($ruleList);
+
+    foreach ($ruleList as $rule) {
+        if (!call_user_func($ruleList[2], config($rule[1]))) {
+            _error($rule[3]);
+        }
+    }
 }

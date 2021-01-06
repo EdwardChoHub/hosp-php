@@ -8,7 +8,7 @@ use function hosp\_router;
 use function hosp\config;
 use function hosp\router;
 
-class TestRouter extends TestCase
+class RouterTest extends TestCase
 {
     public function testRouterRegister()
     {

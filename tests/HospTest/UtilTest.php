@@ -4,9 +4,11 @@ namespace HospTest;
 
 use PHPUnit\Framework\TestCase;
 use function hosp\_callback;
+use function hosp\_input_filter;
 use function hosp\_response;
 use function hosp\array_to_get_string;
 use function hosp\config;
+use function hosp\dump;
 use function hosp\error;
 use function hosp\false;
 use function hosp\input;
@@ -145,5 +147,17 @@ class UtilTest extends TestCase
 
         $this->assertEquals(1, _callback('test.callback', []));
 
+    }
+
+    public function testInputFilter(){
+        $params = [
+            'a' => htmlspecialchars('<html></html>'),
+            'b' => ' b ',
+            'c' => htmlspecialchars(' <html></html> '),
+        ];
+        $this->assertEquals(true, is_array($params));
+        $this->assertArrayHasKey('a', $params);
+        $this->assertArrayHasKey('b', $params);
+        $this->assertArrayHasKey('c', $params);
     }
 }

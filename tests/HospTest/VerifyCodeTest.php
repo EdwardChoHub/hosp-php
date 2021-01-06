@@ -7,7 +7,7 @@ namespace HospTest;
 use function hosp\verify_code_check;
 use function hosp\verify_code_save;
 
-class TestVerifyCode extends TestCase
+class VerifyCodeTest extends TestCase
 {
     public function testVerifyCodeCheck()
     {
