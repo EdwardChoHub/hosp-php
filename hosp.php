@@ -12,7 +12,10 @@ _init();
  * @notes 应用配置
  */
 config('app', [
-    'extra_custom' => '/custom.php',
+    /** 外部文件（无顺序要求）, 建议对代码进行分类存储，例如action,model存一起，app,database配置类存一起 */
+    'extra_custom' => [
+        '/custom.php'
+    ],
     //调试模式，会检测配置信息
     'debug' => true,
     //完全自定义action 不使用预设action 关闭后预设api无法使用
@@ -521,7 +524,7 @@ function input($name = null, $default = null)
  * @param $params array
  * @return string
  */
-function array_to_get_string($params)
+function array_to_get_string(array $params)
 {
     $paramsStr = '';
     foreach ($params as $name => $value) {
@@ -978,11 +981,18 @@ function _init()
 /** 框架执行 */
 function _run()
 {
-    /** 引入外部用户自定义代码（建议使用，方便后期升级） */
-    $extraCustomFile = APP_PATH . DS . config('app.extra_custom');
-    if (file_exists($extraCustomFile)) {
-        require_once $extraCustomFile;
+    $files = config('app.extra_custom');
+    if(!is_array($files)){
+        $files = [$files];
     }
+    foreach ($files as $file){
+        /** 引入外部用户自定义代码（建议使用，方便后期升级） */
+        $filename = APP_PATH . DS . $file;
+        if (file_exists($filename)) {
+            require_once $filename;
+        }
+    }
+
 
     if (!IS_REQUIRE) {
         /** 页面不进行直接渲染 */
