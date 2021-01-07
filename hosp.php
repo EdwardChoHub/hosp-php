@@ -60,9 +60,9 @@ config('database', [
     'table_prefix' => 'hisi_',
     //打开得编码形式
     'charset' => 'utf-8',
-    //软删除状态(配置后将不会拿出假删除数据)，使用删除时如果存在假删除状态默认使用假删除
+    /** 配置非假删值，软删除记录删除10位时间戳 */
     'soft_delete' => [
-        'table_name.field' => 'soft_delete_value'
+        'table_name.field' => 0
     ],
     /** 自动事件 */
     'auto_event' => [
@@ -339,9 +339,9 @@ function config($name = '', $value = '')
             }
             $config = &$config[$indexList[$i]];
         }
-        if(is_array($config[$indexList[$count - 1]]) && is_array($value)){
+        if (is_array($config[$indexList[$count - 1]]) && is_array($value)) {
             $config[$indexList[$count - 1]] = array_merge($config[$indexList[$count - 1]], $value);
-        }else{
+        } else {
             $config[$indexList[$count - 1]] = $value;
         }
         return null;
@@ -451,7 +451,7 @@ function log($content, $filename)
  * @notes 函数调用
  * @param $name string 函数配置名
  * @param array $args
- * @return mixed
+ * @return mixed|void
  */
 function _callback(string $name, $args = [])
 {
@@ -460,11 +460,12 @@ function _callback(string $name, $args = [])
         if (is_callable($callback)) {
             $reflectFunction = new ReflectionFunction($callback);
             return $reflectFunction->invokeArgs($args);
+        } else {
+            throw new Exception();
         }
     } catch (Exception $e) {
         _error("调用{$name}函数异常");
     }
-
 }
 
 /** Request */
@@ -532,12 +533,13 @@ function input($name = null, $default = null)
  * @return mixed
  * @author EdwardCho
  */
-function _input_filter(array $params){
+function _input_filter(array $params)
+{
     $filters = config('app.default_filter');
     $filters = explode(',', $filters);
-    foreach ($params as $name => $value){
-        foreach ($filters as $filter){
-            if(empty($filter)){
+    foreach ($params as $name => $value) {
+        foreach ($filters as $filter) {
+            if (empty($filter)) {
                 continue;
             }
             $value = call_user_func($filter, $value);
@@ -1008,10 +1010,10 @@ function _init()
 function _run()
 {
     $files = config('app.extra_custom');
-    if(!is_array($files)){
+    if (!is_array($files)) {
         $files = [$files];
     }
-    foreach ($files as $file){
+    foreach ($files as $file) {
         /** 引入外部用户自定义代码（建议使用，方便后期升级） */
         $filename = APP_PATH . DS . $file;
         if (file_exists($filename)) {
@@ -1331,6 +1333,7 @@ function mysql_history($sql = '')
         return $GLOBALS['mysql_history'];
     } else {
         array_unshift($GLOBALS['mysql_history'], $sql);
+        return null;
     }
 }
 
@@ -1373,13 +1376,8 @@ function _mysql()
  * @param $sql
  * @return array|int
  */
-function mysql_exec($sql)
+function _mysql_exec($sql)
 {
-    /** 记录执行的SQL */
-    mysql_history($sql);
-
-    _callback('event.before_sql', ['sql' => $sql]);
-
     try {
         $result = _mysql()->prepare($sql);
 
@@ -1394,14 +1392,8 @@ function mysql_exec($sql)
             ? $result->fetchAll(PDO::FETCH_ASSOC)
             : $result->rowCount();
 
-        _callback('event.after_sql', ['sql' => $sql, 'result' => $result]);
-
-        //执行日志
-        log('run true :' . $sql, 'sql');
-
     } catch (Exception $e) {
-        log('run false :' . $sql, 'sql');
-        log('error_info :' . $e->getMessage(), 'sql');
+        db_error($e->getMessage());
         return false;
     }
 
@@ -1414,7 +1406,7 @@ function mysql_exec($sql)
  * @return array|false|int
  * @author EdwardCho
  */
-function mysql_insert($table, $data)
+function _mysql_insert($table, $data)
 {
     $sql = "INSERT `{$table}`(%s) VALUES(%s)";
     $fields = "";
@@ -1425,7 +1417,7 @@ function mysql_insert($table, $data)
     }
     $fields = substr($fields, 0, strlen($fields) - 1);
     $values = substr($values, 0, strlen($values) - 1);
-    return mysql_exec(sprintf($sql, $fields, $values));
+    return db_exec(sprintf($sql, $fields, $values));
 }
 
 /**
@@ -1434,13 +1426,13 @@ function mysql_insert($table, $data)
  * @return array|false|int
  * @author EdwardCho
  */
-function mysql_delete($table, $where)
+function _mysql_delete($table, $where)
 {
     $sql = "DELETE FROM `{$table}` ";
-    if(!empty(trim($where))){
+    if (!empty(trim($where))) {
         $sql .= 'WHERE ' . $where;
     }
-    return mysql_exec($sql);
+    return db_exec($sql);
 }
 
 /**
@@ -1450,7 +1442,7 @@ function mysql_delete($table, $where)
  * @return array|false|int
  * @author EdwardCho
  */
-function mysql_update($table, $data, $where)
+function _mysql_update($table, $data, $where)
 {
     $sql = "UPDATE `{$table}` SET ";
 
@@ -1460,7 +1452,7 @@ function mysql_update($table, $data, $where)
     if (substr($sql, -1, 1) == ',') {
         $sql = substr($sql, 0, strlen($sql) - 1);
     }
-    return mysql_exec($sql . " WHERE 1=1 AND " . $where);
+    return db_exec($sql . " WHERE 1=1 AND " . $where);
 }
 
 /**
@@ -1474,7 +1466,7 @@ function mysql_update($table, $data, $where)
  * @return array|false|int
  * @author EdwardCho
  */
-function mysql_select($table, $field = '', $where = '', $order = '', $group = '', $limit = '', $having = '')
+function _mysql_select($table, $field = '', $where = '', $order = '', $group = '', $limit = '', $having = '')
 {
     $sql = "SELECT ";
 
@@ -1500,196 +1492,37 @@ function mysql_select($table, $field = '', $where = '', $order = '', $group = ''
         $sql .= ' LIMIT ' . $limit;
     }
 
-
-    return mysql_exec($sql);
+    return db_exec($sql);
 }
 
-
-/**
- * @notes 查
- * @param $table
- * @param $where
- * @param string $field
- * @param string $order
- * @param string $group
- * @param string $limit
- * @param string $having
- * @return array
- * @author EdwardCho
- */
-function db_select($table, $where, $field = '', $order = '', $group = '', $limit = '', $having = '')
+function db_error($error = '')
 {
-
-    $result = _db_soft_delete($table);
-    if ($result) {
-        $where .= " AND {$result[0]} = {$result[1]} ";
-    }
-
-    $result = mysql_select($table, $field, $where, $order, $group, $limit, $having);
-
-    return $result;
-}
-
-/**
- * @notes 删除
- * @param $where
- * @param $table
- * @return string
- */
-function db_delete($table, $where)
-{
-    return db_true_delete() ? mysql_delete($table, $where) : db_update($table, _db_soft_delete($table), $where);
-}
-
-/**
- * @notes 更新
- * @param $table
- * @param $data
- * @param $where
- * @return string
- * @author EdwardCho
- */
-function db_update($table, $data, $where)
-{
-    $data = array_merge($data, _db_auto_timestamp($table));
-    return mysql_update($table, $data, $where);
-}
-
-/**
- * @notes 插单
- * @param $table
- * @param $data
- * @return string
- */
-function db_insert($table, $data)
-{
-
-    //自动插入时间戳
-    $data = array_merge($data, _db_auto_timestamp($table, true));
-    //补全插入
-    $data = _db_complete_insert($table, $data);
-    return mysql_insert($table, $data);
-}
-
-/**
- * @notes 查单
- * @param $table
- * @param $id
- * @param string $field
- * @param string $pk
- * @return array|false|int
- * @author EdwardCho
- */
-function db_get($table, $id, $field = '', $pk = 'id')
-{
-    return db_select($table, "{$pk} = {$id}", $field, '', '', 1);
-}
-
-/**
- * @notes 查总
- * @param $table
- * @param $where
- * @param string $count
- * @return string
- * @author EdwardCho
- */
-function db_count($table, $where, $count = '')
-{
-    return db_select($table, $where, "COUNT({$count}) as `count`", '', '', 1)['count'] ?: 0;
-}
-
-/**
- * @notes 查列
- * @param $table
- * @param $where
- * @param $field
- * @return array
- */
-function db_column($table, $where, $field)
-{
-    return array_column(db_select($table, $where, $field) ?: [], $field);
-}
-
-/**
- * @notes 插多条
- * @param $table
- * @param $array
- * @return array|false|int
- */
-function db_insert_all($table, $array)
-{
-    $result = 0;
-    foreach ($array as $data) {
-        $result += db_insert($table, $data);
-    }
-
-    return $result;
-
-}
-
-/**
- * @notes 查单记录字段值
- * @param $table
- * @param $where
- * @param $field
- * @return string
- */
-function db_field($table, $where, $field)
-{
-    $result = db_select($table, $where, $field, '', '', 1);
-    return $result ? $result[$field] : null;
-}
-
-/**
- * @notes 获取表字段
- * @param $table
- * @return false|array
- */
-function _db_table_fileds($table)
-{
-    $sql = sprintf('
-            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_NAME = "%s" AND TABLE_SCHEMA = "%s"',
-        $table,
-        config('database.dbname')
-    );
-    $result = mysql_exec($sql);
-    if (is_bool($result)) {
-        return $result;
-    }
-    return array_column($result, 'COLUMN_NAME');
-}
-
-/**
- * @notes 下一次操作自动去除非表内字段，需要查表字段
- * @param null $bool
- * @return mixed|void
- * @author EdwardCho
- */
-function db_allow_fields($bool = null)
-{
-    if ($bool === null) {
-        $result = $GLOBALS['mysql_allow_fields'];
-        unset($GLOBALS['mysql_allow_fields']);
-        return $result;
+    if ($error !== '') {
+        $GLOBALS['mysql_error'] = $error;
+        return null;
     } else {
-        $GLOBALS['mysql_allow_fields'] = $bool;
+        return $GLOBALS['mysql_error'];
     }
 }
 
 /**
  * @notes 下一次操作为真删
+ * @param $table
  * @param null $bool
  * @return mixed|void
  */
-function db_true_delete($bool = null)
+function db_true_delete($table, $bool = '')
 {
-    if ($bool === null) {
-        $result = $GLOBALS['mysql_true_delete'];
-        unset($GLOBALS['mysql_true_delete']);
-        return $result;
+    if(!isset($GLOBALS['MYSQL_TRUE_DELETE'])){
+        $GLOBALS['MYSQL_TRUE_DELETE'] = [];
+    }
+    if ($bool === '') {
+        if(isset($GLOBALS['MYSQL_TRUE_DELETE'][$table])){
+            return $GLOBALS['MYSQL_TRUE_DELETE'][$table]?:false;
+        }
+        return !boolval(_db_soft_delete($table));
     } else {
-        $GLOBALS['mysql_true_delete'] = $bool;
+        $GLOBALS['MYSQL_TRUE_DELETE'][$table] = $bool;
     }
 }
 
@@ -1712,16 +1545,45 @@ function _db_soft_delete($table)
 }
 
 /**
- * @notes 补全插入值
+ * @notes 自动写入时间戳字段值
  * @param $table
- * @param $data
- * @return array
+ * @param false $insert
+ * @return mixed
  * @author EdwardCho
  */
-function _db_complete_insert($table, $data)
+function _db_auto_timestamp($table, $insert = false)
 {
-    //非空值
-    return array_merge(_db_table_default_values($table), $data);
+    $timestamps = config('database.auto_event.timestamp');
+    if(!isset($timestamps[$table])){
+        $data = [];
+    }else{
+        $data = [
+            $timestamps[$table]['update_time'] => time(),
+        ];
+        if($insert){
+            $data[$timestamps[$table]['create_time']] = time();
+        }
+    }
+    return $data;
+}
+
+/**
+ * @notes 下一次操作自动去除非表内字段，需要查表字段
+ * @param $table
+ * @param null $bool
+ * @return mixed|void
+ * @author EdwardCho
+ */
+function db_allow_fields($table, $bool = null)
+{
+    if (!isset($GLOBALS['mysql_allow_fields'])) {
+        $GLOBALS['mysql_allow_fields'] = [];
+    }
+    if ($bool === null) {
+        return $GLOBALS['mysql_allow_fields'][$table] ?: false;
+    } else {
+        $GLOBALS['mysql_allow_fields'][$table] = $bool;
+    }
 }
 
 /**
@@ -1739,7 +1601,7 @@ function _db_table_default_values($table)
         $table,
         config('database.dbname')
     );
-    $fields = mysql_exec($sql);
+    $fields = db_exec($sql);
     if (is_bool($fields)) {
         return false;
     }
@@ -1771,28 +1633,211 @@ function _db_table_default_values($table)
 }
 
 /**
- * @notes 自动写入时间戳字段值
+ * @notes 补全插入值
  * @param $table
- * @param false $insert
- * @return mixed
+ * @param $data
+ * @return array
  * @author EdwardCho
  */
-function _db_auto_timestamp($table, $insert = false)
+function _db_complete_insert($table, $data)
 {
-    $data = [];
-    $config = config('database.auto.timestamp');
-    if ($config['switch']) {
-        $time = $config['generator'] ?: time();
-
-        if ($insert) {
-            $field = $config['createTime'][$table];
-            !empty($field) && $data[$field] = $time;
-        }
-
-        $field = $config['updateTime'][$table];
-        !empty($field) && $data[$field] = $time;
+    if(!config('database.auto_event.complete_insert')){
+        return $data;
     }
-    return $data;
+    //非空值
+    return array_merge(_db_table_default_values($table), $data);
+}
+
+/**
+ * @notes 获取表字段
+ * @param $table
+ * @return false|array
+ */
+function _db_table_fields($table)
+{
+    $sql = sprintf('
+            SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = "%s" AND TABLE_SCHEMA = "%s"',
+        $table,
+        config('database.dbname')
+    );
+    $result = _mysql_exec($sql);
+    if (is_bool($result)) {
+        return $result;
+    }
+    return array_column($result, 'COLUMN_NAME');
+}
+
+/**
+ * 执行器包装函数
+ * @param $sql
+ * @return array|false|int|mixed
+ * @author EdwardCho
+ */
+function db_exec($sql)
+{
+    /** 记录执行的SQL */
+    mysql_history($sql);
+
+    _callback('event.before_sql', ['sql' => $sql]);
+
+    $result = _mysql_exec($sql);
+
+    _callback('event.after_sql', ['sql' => $sql, 'result' => $result]);
+
+    if ($result === false) {
+        log('run false :' . $sql, 'sql');
+    } else {
+        //执行日志
+        log('run true :' . $sql, 'sql');
+    }
+
+    return $result;
+}
+
+/**
+ * @notes 删除
+ * @param $where
+ * @param $table
+ * @return string
+ */
+function db_delete($table, $where)
+{
+    $table = config('database.table_prefix') . $table;
+    return db_true_delete($table) ? _mysql_delete($table, $where) : db_update($table, _db_soft_delete($table), $where);
+}
+
+/**
+ * @notes 更新
+ * @param $table
+ * @param $data
+ * @param $where
+ * @return string
+ * @author EdwardCho
+ */
+function db_update($table, $data, $where)
+{
+    $table = config('database.table_prefix') . $table;
+    $data = array_merge($data, _db_auto_timestamp($table));
+    return _mysql_update($table, $data, $where);
+}
+
+/**
+ * @notes 插单
+ * @param $table
+ * @param $data
+ * @return string
+ */
+function db_insert($table, $data)
+{
+    $table = config('database.table_prefix') . $table;
+
+    //自动插入时间戳
+    $data = array_merge($data, _db_auto_timestamp($table, true));
+    //补全插入
+    $data = _db_complete_insert($table, $data);
+    return _mysql_insert($table, $data);
+}
+
+/**
+ * @notes 插多条
+ * @param $table
+ * @param $array
+ * @return array|false|int
+ */
+function db_insert_all($table, $array)
+{
+    $result = 0;
+    foreach ($array as $data) {
+        $result += db_insert($table, $data);
+    }
+
+    return $result;
+
+}
+
+/**
+ * @notes 查
+ * @param $table
+ * @param $where
+ * @param string $field
+ * @param string $order
+ * @param string $group
+ * @param string $limit
+ * @param string $having
+ * @return array
+ * @author EdwardCho
+ */
+function db_select($table, $where = '', $field = '', $order = '', $group = '', $limit = '', $having = '')
+{
+    $table = config('database.table_prefix') . $table;
+
+    $result = _db_soft_delete($table);
+    if(empty(trim($where))){
+        $where = '1=1';
+    }
+    if ($result) {
+        $where .= " AND {$result[0]} = {$result[1]} ";
+    }
+
+    $result = _mysql_select($table, $field, $where, $order, $group, $limit, $having);
+
+    return $result;
+}
+
+/**
+ * @notes 查总
+ * @param $table
+ * @param $where
+ * @param string $count
+ * @return string
+ * @author EdwardCho
+ */
+function db_count($table, $where, $count = '')
+{
+    return db_select($table, $where, "COUNT({$count}) as `hosp_count`", '', '', 1)['hosp_count'] ?: 0;
+}
+
+/**
+ * @notes 查列
+ * @param $table
+ * @param $where
+ * @param $field
+ * @return array
+ */
+function db_column($table, $where, $field)
+{
+    return array_column(db_select($table, $where, $field) ?: [], $field);
+}
+
+/**
+ * @notes 查单记录字段值
+ * @param $table
+ * @param $where
+ * @param $field
+ * @return string
+ */
+function db_field($table, $where, $field)
+{
+    $result = db_select($table, $where, $field, '', '', 1);
+    if(!$result || !is_array($result) || !count($result)){
+        return null;
+    }
+    return $result[0][$field];
+}
+
+/**
+ * @notes 查单
+ * @param $table
+ * @param $id
+ * @param string $field
+ * @param string $pk
+ * @return array|false|int
+ * @author EdwardCho
+ */
+function db_get($table, $id, $field = '', $pk = 'id')
+{
+    return db_select($table, "{$pk} = {$id}", $field, '', '', 1);
 }
 
 /**
@@ -1827,7 +1872,7 @@ function _db_auto_query($table, $data)
                 continue;
             }
             list($relationTable, $foreignKey) = $relation;
-            $result = mysql_select(
+            $result = _mysql_select(
                 config('database.prefix') . $relationTable,
                 '',
                 "$foreignKey = {$record[$fk]}",
@@ -1871,7 +1916,7 @@ function hosp($express, $params = [])
 function _hosp_exec(string $sql, $options = [])
 {
 
-    $result = mysql_exec($sql);
+    $result = _mysql_exec($sql);
     if (is_bool($result)) {
         $result = false;
     }
@@ -2229,7 +2274,6 @@ function _hosp_standard_resolve(string $express)
 
     return $data;
 }
-
 
 
 /**
