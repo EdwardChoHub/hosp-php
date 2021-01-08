@@ -1506,6 +1506,20 @@ function db_error($error = '')
 }
 
 /**
+ * @param $table
+ * @param null $prefix
+ * @return string
+ * @author EdwardCho
+ */
+function db_table($table, $prefix = null)
+{
+    if (is_null($prefix)) {
+        $prefix = config('database.table_prefix');
+    }
+    return $prefix . $table;
+}
+
+/**
  * @notes 下一次操作为真删
  * @param $table
  * @param null $bool
@@ -1513,12 +1527,12 @@ function db_error($error = '')
  */
 function db_true_delete($table, $bool = '')
 {
-    if(!isset($GLOBALS['MYSQL_TRUE_DELETE'])){
+    if (!isset($GLOBALS['MYSQL_TRUE_DELETE'])) {
         $GLOBALS['MYSQL_TRUE_DELETE'] = [];
     }
     if ($bool === '') {
-        if(isset($GLOBALS['MYSQL_TRUE_DELETE'][$table])){
-            return $GLOBALS['MYSQL_TRUE_DELETE'][$table]?:false;
+        if (isset($GLOBALS['MYSQL_TRUE_DELETE'][$table])) {
+            return $GLOBALS['MYSQL_TRUE_DELETE'][$table] ?: false;
         }
         return !boolval(_db_soft_delete($table));
     } else {
@@ -1554,13 +1568,13 @@ function _db_soft_delete($table)
 function _db_auto_timestamp($table, $insert = false)
 {
     $timestamps = config('database.auto_event.timestamp');
-    if(!isset($timestamps[$table])){
+    if (!isset($timestamps[$table])) {
         $data = [];
-    }else{
+    } else {
         $data = [
             $timestamps[$table]['update_time'] => time(),
         ];
-        if($insert){
+        if ($insert) {
             $data[$timestamps[$table]['create_time']] = time();
         }
     }
@@ -1641,7 +1655,7 @@ function _db_table_default_values($table)
  */
 function _db_complete_insert($table, $data)
 {
-    if(!config('database.auto_event.complete_insert')){
+    if (!config('database.auto_event.complete_insert')) {
         return $data;
     }
     //非空值
@@ -1703,7 +1717,7 @@ function db_exec($sql)
  */
 function db_delete($table, $where)
 {
-    $table = config('database.table_prefix') . $table;
+    $table = db_table($table);
     return db_true_delete($table) ? _mysql_delete($table, $where) : db_update($table, _db_soft_delete($table), $where);
 }
 
@@ -1717,9 +1731,8 @@ function db_delete($table, $where)
  */
 function db_update($table, $data, $where)
 {
-    $table = config('database.table_prefix') . $table;
     $data = array_merge($data, _db_auto_timestamp($table));
-    return _mysql_update($table, $data, $where);
+    return _mysql_update(db_table($table), $data, $where);
 }
 
 /**
@@ -1730,13 +1743,12 @@ function db_update($table, $data, $where)
  */
 function db_insert($table, $data)
 {
-    $table = config('database.table_prefix') . $table;
 
     //自动插入时间戳
     $data = array_merge($data, _db_auto_timestamp($table, true));
     //补全插入
-    $data = _db_complete_insert($table, $data);
-    return _mysql_insert($table, $data);
+    $data = _db_complete_insert(db_table($table), $data);
+    return _mysql_insert(db_table($table), $data);
 }
 
 /**
@@ -1770,19 +1782,17 @@ function db_insert_all($table, $array)
  */
 function db_select($table, $where = '', $field = '', $order = '', $group = '', $limit = '', $having = '')
 {
-    $table = config('database.table_prefix') . $table;
-
     $result = _db_soft_delete($table);
-    if(empty(trim($where))){
+    if (empty(trim($where))) {
         $where = '1=1';
     }
     if ($result) {
         $where .= " AND {$result[0]} = {$result[1]} ";
     }
 
-    $result = _mysql_select($table, $field, $where, $order, $group, $limit, $having);
+    $result = _mysql_select(db_table($table), $field, $where, $order, $group, $limit, $having);
 
-    return $result;
+    return _db_auto_query($table, $result);
 }
 
 /**
@@ -1807,7 +1817,7 @@ function db_count($table, $where, $count = '')
  */
 function db_column($table, $where, $field)
 {
-    return array_column(db_select($table, $where, $field) ?: [], $field);
+    return array_column(db_select($table, $where, "{$field} as 'hosp_column'") ?: [], 'hosp_column');
 }
 
 /**
@@ -1819,11 +1829,11 @@ function db_column($table, $where, $field)
  */
 function db_field($table, $where, $field)
 {
-    $result = db_select($table, $where, $field, '', '', 1);
-    if(!$result || !is_array($result) || !count($result)){
+    $result = db_select($table, $where, "{$field} as `hosp_field`", '', '', 1);
+    if (!$result || !is_array($result) || !count($result)) {
         return null;
     }
-    return $result[0][$field];
+    return $result[0]['hosp_field'];
 }
 
 /**
@@ -1837,7 +1847,15 @@ function db_field($table, $where, $field)
  */
 function db_get($table, $id, $field = '', $pk = 'id')
 {
-    return db_select($table, "{$pk} = {$id}", $field, '', '', 1);
+    $result = db_select($table, "{$pk} = {$id}", $field, '', '', 1);
+    if(is_bool($result)){
+        return $result;
+    }
+    if(is_array($result) && count($result) == 0){
+        return null;
+    }
+
+    return $result[0];
 }
 
 /**
@@ -1862,28 +1880,24 @@ function _db_auto_query($table, $data)
         }
         $relations[$fk] = $value;
     }
+
     if (count($relations) == 0) {
         return $data;
     }
-
     foreach ($data as &$record) {
         foreach ($relations as $fk => $relation) {
             if (!isset($record[$fk])) {
                 continue;
             }
-            list($relationTable, $foreignKey) = $relation;
-            $result = _mysql_select(
-                config('database.prefix') . $relationTable,
-                '',
-                "$foreignKey = {$record[$fk]}",
-                '',
-                '',
-                $relation == ONE_TO_ONE ? 1 : ''
+            list($relationTable, $foreignKey) = explode('.', $relation);
+            $result = db_select(
+                $relationTable,
+                "$foreignKey = {$record[$fk]}"
             );
-            $record['relation'][$relationTable] = $relation == ONE_TO_ONE ? $result[0] : $result;
+            $record['relation'][$relationTable] = $result;
         }
     }
-    unset($record);
+
     return $data;
 }
 

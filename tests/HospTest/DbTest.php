@@ -22,9 +22,7 @@ use function hosp\db_insert_all;
 use function hosp\db_select;
 use function hosp\db_true_delete;
 use function hosp\db_update;
-use function hosp\dump;
 use function hosp\get_last_sql;
-use function hosp\mysql_exec;
 use function hosp\mysql_history;
 
 class DbTest extends TestCase
@@ -126,7 +124,7 @@ class DbTest extends TestCase
 
     public function testDbDelete()
     {
-        $result = db_delete('test', '1=1');
+        $result = db_delete('test', '2=1');
         $this->assertTrue(is_int($result));
         $this->assertNotNull(get_last_sql());
     }
@@ -160,7 +158,6 @@ class DbTest extends TestCase
         ]);
         $this->assertEquals(2, $result);
     }
-
 
     public function testDbUpdate(){
         config('database.auto_event.timestamp', [
@@ -207,8 +204,24 @@ class DbTest extends TestCase
         $this->assertTrue(is_array($result));
     }
 
-    public function testDbAutoQuery(){
-
+    public function testDbGetAutoQuery(){
+        config('database.auto_event.query', [
+            'test2.test_id' => 'test.id',
+            'test.test3_id' => 'test3.id',
+        ]);
+        $result = db_get('test2', 'id =1');
+        $this->assertArrayHasKey('relation', $result);
     }
+
+    public function testDbSelectListAutoQuery(){
+        config('database.auto_event.query', [
+            'test2.test_id' => 'test.id',
+            'test.test3_id' => 'test3.id',
+        ]);
+        $result = db_select('test2', '1=1');
+        $this->assertArrayHasKey('relation', $result[0]);
+    }
+
+
 
 }

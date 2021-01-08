@@ -47,7 +47,7 @@ class MysqlTest extends TestCase
 
     public function testMysqlDelete()
     {
-        $result = _mysql_delete('tp_test', '1=1');
+        $result = _mysql_delete('tp_test', '2=1');
         $this->assertTrue(is_int($result));
     }
 
