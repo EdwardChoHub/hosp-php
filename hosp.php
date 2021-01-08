@@ -1848,10 +1848,10 @@ function db_field($table, $where, $field)
 function db_get($table, $id, $field = '', $pk = 'id')
 {
     $result = db_select($table, "{$pk} = {$id}", $field, '', '', 1);
-    if(is_bool($result)){
+    if (is_bool($result)) {
         return $result;
     }
-    if(is_array($result) && count($result) == 0){
+    if (is_array($result) && count($result) == 0) {
         return null;
     }
 
@@ -2092,11 +2092,10 @@ function _hosp_simple_resolve(string $express)
     //去掉空格
     $expression = str_replace(' ', '', $express);
     //区分每个单词（在大写字母前加一个空格，并转成小写）
-    $matches = preg_replace_callback('/[A-Z]/', function ($matches) {
+    $matches = preg_replace_callback('/[A-Z!]/', function ($matches) {
         return ' ' . strtolower($matches[0]);
     }, $expression);
     $array = explode(' ', $matches);
-
     if (count($array) == 0) {
         _error("hosp表达式解析异常，表达式：{$express}");
     }
@@ -2104,51 +2103,69 @@ function _hosp_simple_resolve(string $express)
     //类型
     $data['type'] = array_shift($array);
 
-    if (isset($array[0]) && strtolower($array[0]) != 'by') {
+    $mods = ['by', 'only', 'none', 'order', 'group', 'set'];
+
+    if (isset($array[0]) && !in_array(strtolower($array[0]), $mods)) {
         //模式
         $data['option'][strtoupper(array_shift($array))] = true;
     }
 
+
     $key = '';
-    foreach ($array as $value) {
+    foreach ($array as $i => $value) {
         $lowerValue = strtolower($value);
         if (in_array($lowerValue, ['page', 'limit'])) {
             $key = $value;
             $data[$key] = $lowerValue;
-        } elseif (in_array($lowerValue, ['by', 'only', 'none', 'order', 'group', 'set'])) {
+            continue;
+        }
+        if (in_array($lowerValue, ['by', 'only', 'none', 'order', 'group', 'set'])) {
             $key = $value;
-            $data[$key] = [];
-        } else {
-            switch ($lowerValue) {
-                case 'by':
-                    if (!empty($data[$key])) {
-                        $data[$key] .= ' AND ';
-                    }
-                    $data[$key] .= " `{$value}` = #[$value]";
-                    break;
-                case 'only':
-                    if (!empty($data[$key])) {
-                        $data[$key] .= ',';
-                    }
-                    $data[$key] .= $value;
-                    break;
-                case 'none':
-                    $data['option'][$key][] = $value;
-                    break;
-                case 'order':
-                    $type = substr($value, 1, 1) == '!' ? 'DESC' : 'ASC';
-                    $data[$key] .= " {$value} {$type}";
-                    break;
-                case 'group':
-                    $data[$key] .= " {$value}";
-                    break;
-                case 'set':
-                    if (!empty($data[$key])) {
-                        $data[$key] .= ',';
-                    }
-                    $data[$key] .= " `{$value}` = #[$value]";
-                    break;
-            }
+            $data[$key] = '';
+            continue;
+        }
+
+        switch ($key) {
+            case 'by':
+                if (!empty($data[$key])) {
+                    $data[$key] .= ' AND';
+                }
+                $data[$key] .= " `{$value}` = '#[$value]'";
+                break;
+            case 'only':
+                if (!empty($data[$key])) {
+                    $data[$key] .= ',';
+                }
+                $data[$key] .= $value;
+                break;
+            case 'order':
+                if ($value == '!') {
+                    continue;
+                }
+                if ($array[$i - 1] == '!') {
+                    $data[$key] .= " {$value} DESC";
+                } else {
+                    $data[$key] .= " {$value} ASC";
+                }
+                break;
+            case 'group':
+                if (!empty($data[$key])) {
+                    $data[$key] .= ',';
+                }
+                $data[$key] .= " {$value}";
+                break;
+            case 'set':
+                if (!empty($data[$key])) {
+                    $data[$key] .= ',';
+                }
+                $data[$key] .= " `{$value}` = '#[$value]'";
+                break;
+            case 'none':
+                $data['option'][$key][] = $value;
+                break;
+            default :
+                $data[$key] = $value;
+                break;
         }
     }
 
@@ -2158,106 +2175,119 @@ function _hosp_simple_resolve(string $express)
 /**
  * @notes 标准表达式解析
  * @param string $express
- * @return array
+ * @return false|array
  */
 function _hosp_standard_resolve(string $express)
 {
+    if(!stripos($express, '{')){
+        return false;
+    }
+
     $data = [];
     $subs = [];
     //去除空格
     $expression = str_ireplace(' ', '', $express);
     //取出事件名和子表达式
-    preg_match('/(\w.*?){(.*?)}/', $expression, $typeAndSubs);
+    preg_match('/(.*){(.*?)}/', $expression, $typeAndSubs);
     if (count($typeAndSubs) > 0) {
-        //事件名操作类型
-        preg_match('/(.*[a-z])[A-Z]/', $typeAndSubs[1], $matches);
-        if (count($matches) > 0) {
-            $data['type'] = $matches[1];
-        }
-        //事件名模式
-        preg_match('/([A-Z].*)/', $typeAndSubs[1], $matches);
-        if (count($matches) > 0) {
-            $data['option'][strtolower($matches[1])] = true;
+        array_shift($typeAndSubs);
+
+        if(!stripos($typeAndSubs[0], '[')){
+            $typeAndOption = preg_replace_callback('/[A-Z!]/', function ($matches) {
+                return ' ' . strtolower($matches[0]);
+            }, array_shift($typeAndSubs));
+            list($type, $option) = explode(' ', $typeAndOption);
+            $data['type'] = $type;
+            $data['option'][$option] = true;
         }
         //子表达式进行分组
-        preg_match_all('/(\w.*?)\[(.*?)]/', $typeAndSubs[2], $matches);
+        preg_match_all('/(\w.*?)\[(.*?)]/', $typeAndSubs[0], $matches);
         if (count($matches) > 0) {
             //遍历拿出子表达式名和值并进行一一组合
             foreach ($matches[0] as $key => $value) {
-                $subs[$matches[1][$key]] = $matches[2][$key];
+                $data[$matches[1][$key]] = $matches[2][$key];
             }
         }
     }
 
-    if (isset($subs['by'])) {
-        if (preg_match('/[(|&~%]/', $subs['by'])) {
+    if (isset($data['by'])) {
+        //符号对应的实际字符串
+        $symbolHandlers = [
+            '(' => '(',
+            ')' => ')',
+            '' => function ($name, $param) {
+                return "`{$name}` = '#[{$param}]'";
+            },
+            '|' => function ($name, $param) {
+                return " OR `{$name}` = '#[{$param}]'";
+            },
+            '&' => function ($name, $param) {
+                return " AND `{$name}` = '#[{$param}]'";
+            },
+            '!' => function ($name, $param) {
+                return " `{$name}` != '#[{$param}]' ";
 
-            //符号对应的实际字符串
-            $symbolHandlers = [
-                '|' => ' OR ',
-                '&' => ' AND ',
-                '(' => '(',
-                ')' => ')',
-                '' => function ($name, $param) {
-                    return " `{$name}` = '#[{$param}]' ";
-                },
-                '!' => function ($name, $param) {
-                    return " `{$name}` != '#[{$param}]' ";
-
-                },
-                '~' => function ($name, $param) {
-                    return " `{$name}` LIKE '%#[$param]%' ";
-                },
-                '%~' => function ($name, $param) {
-                    return " `{$name}` LIKE '%#[$param]' ";
-                },
-                '~%' => function ($name, $param) {
-                    return " `{$name}` LIKE '#[$param]%' ";
-                },
-                '!~' => function ($name, $param) {
-                    return " `{$name}` NOT LIKE '%#[$param]%' ";
-                },
-                '!%~' => function ($name, $param) {
-                    return " `{$name}` NOT LIKE '%#[$param]' ";
-                },
-                '!~%' => function ($name, $param) {
-                    return " `{$name}` NOT LIKE '#[$param]%' ";
-                },
-            ];
-            $symbols = array_keys($symbolHandlers);
-
+            },
+            '~' => function ($name, $param) {
+                return " `{$name}` LIKE '%#[$param]%' ";
+            },
+            '%~' => function ($name, $param) {
+                return " `{$name}` LIKE '%#[$param]' ";
+            },
+            '~%' => function ($name, $param) {
+                return " `{$name}` LIKE '#[$param]%' ";
+            },
+            '!~' => function ($name, $param) {
+                return " `{$name}` NOT LIKE '%#[$param]%' ";
+            },
+            '!%~' => function ($name, $param) {
+                return " `{$name}` NOT LIKE '%#[$param]' ";
+            },
+            '!~%' => function ($name, $param) {
+                return " `{$name}` NOT LIKE '#[$param]%' ";
+            },
+        ];
+        $symbols = array_keys($symbolHandlers);
+        $regex = '/[' . implode('', $symbols) . ']/';
+        if (preg_match($regex, $data['by'])) {
             //区分每个单词（在大写字母前加一个空格，并转成小写）
-            $regex = '/[' . implode('', array_keys($symbols)) . ']/';
-            $byString = preg_replace_callback($regex, function ($matches) {
-                return ' ' . strtolower($matches[0]);
-            }, $subs['by']);
+            $byString = preg_replace_callback($regex, function ($content) {
+                return ' ' . $content[0] . ' ';
+            }, $data['by']);
             $bys = explode(' ', $byString);
-
             $where = '';
-            foreach ($bys as $i => $by) {
-                if (in_array($by, $symbols)) {
-                    $bys[$i + 1] = [$by, $bys[$i + 1]];
+            for($i=0;$i<count($bys);$i++){
+                $by = $bys[$i];
+                if($by === ''){
                     continue;
-                } else {
-                    $bys[$i + 1] = ['', $bys[$i + 1]];
-                    if (!is_array($by)) {
+                }
+
+                if(!is_array($by)){
+                    if(in_array($by, $symbols)){
+
+                        $handler = $symbolHandlers[$by];
+                        if(is_string($handler)){
+                            $where .= $handler;
+                            continue;
+                        }
+
+                        $bys[$i + 1] = [$by, $bys[$i + 1]];
+                        continue;
+                    }else{
                         $by = ['', $by];
                     }
                 }
 
                 $handler = $symbolHandlers[$by[0]];
-                if (!is_callable($handler)) {
-                    $where .= $handler;
-                    continue;
-                }
+
                 list($field, $param) = explode(':', $by[1]);
                 if (empty($param)) {
                     $param = $field;
                 }
+
                 $where .= $handler($field, $param);
             }
-
-            $subs['by'] = $where;
+            $data['by'] = $where;
         } else {
             //区分每个单词（在大写字母前加一个空格，并转成小写）
             $byString = preg_replace_callback('/[A-Z!]/', function ($matches) {

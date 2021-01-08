@@ -14,7 +14,6 @@ use function hosp\config;
 
 class MysqlTest extends TestCase
 {
-
     public function __construct($name = null, array $data = [], $dataName = '')
     {
         parent::__construct($name, $data, $dataName);
@@ -31,13 +30,11 @@ class MysqlTest extends TestCase
 
     }
 
-
     public function testMysql()
     {
         $mysql = _mysql();
         $this->assertEquals(true, \PDO::class == get_class($mysql));
     }
-
 
     public function testMysqlExec()
     {
