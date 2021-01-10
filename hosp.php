@@ -57,6 +57,8 @@ config('view', [
     'path' => APP_PATH . '/view',
     /** 视图文件后缀（仅支持php） */
     'ext' => 'php',
+    /** 公共函数，自动调用 */
+    'common' => function(){}
 ]);
 
 /**
@@ -2599,6 +2601,11 @@ function assign($name, $value)
 
 function view($file)
 {
+    $common = config('view.common');
+    if(is_callable($common)){
+        $common();
+    }
+
     $file = config('view.path') . DS . $file . '.' . config('view.ext');
     if(!file_exists($file)){
         _error($file . '文件不存在');
