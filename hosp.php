@@ -9,7 +9,8 @@ use ReflectionFunction;
 _init();
 
 /** 内置用户自定义代码 */
-function _custom(){
+function _custom()
+{
 
 }
 
@@ -49,6 +50,13 @@ config('app', [
     'default_controller' => 'index',
     /** 默认控制器方法 */
     'default_method' => 'index',
+]);
+
+config('view', [
+    /** 视图根目录 */
+    'path' => APP_PATH . '/view',
+    /** 视图文件后缀（仅支持php） */
+    'ext' => 'php',
 ]);
 
 /**
@@ -267,9 +275,12 @@ config('event', [
     },
     'before_model' => function ($model, $input) {
     },
-    'after_model' => function ($model, $output) {},
-    'before_hosp' => function ($express, $input) {},
-    'after_hosp' => function ($express, $output) {},
+    'after_model' => function ($model, $output) {
+    },
+    'before_hosp' => function ($express, $input) {
+    },
+    'after_hosp' => function ($express, $output) {
+    },
     'before_sql' => function ($sql) {
     },
     'after_sql' => function ($sql, $result) {
@@ -502,8 +513,13 @@ function input($name = null, $default = null)
     if (!isset($GLOBALS['REQUEST_PARAMS'])) {
         $url = $_SERVER['REQUEST_URI'];
 
-        //拿到URL中的入参信息
-        $urlParams = get_string_to_array($url);
+        if(!is_null($url)){
+            //拿到URL中的入参信息
+            $urlParams = get_string_to_array($url);
+        }else{
+            $urlParams = [];
+        }
+
 
         //入参参数优先级 json > post > get > urlParams(url中的参数，处理加密url中没有被php解析到的参数)
         $json = json_decode(file_get_contents("php://input"), true);
@@ -513,6 +529,12 @@ function input($name = null, $default = null)
 
         $GLOBALS['REQUEST_PARAMS'] = _input_filter($params);
 
+    }
+    if(isset($GLOBALS['REQUEST_USER_PARAMS'])){
+        if(is_array($GLOBALS['REQUEST_USER_PARAMS'])){
+            $GLOBALS['REQUEST_PARAMS'] = array_merge($GLOBALS['REQUEST_PARAMS'], $GLOBALS['REQUEST_USER_PARAMS']);
+        }
+        unset($GLOBALS['REQUEST_USER_PARAMS']);
     }
     if ($name === null) {
         return $GLOBALS['REQUEST_PARAMS'];
@@ -563,10 +585,11 @@ function array_to_get_string(array $params)
  * @return array
  * @author EdwardCho
  */
-function get_string_to_array(string $url){
+function get_string_to_array(string $url)
+{
     //拿到URL中的入参信息
     $index = stripos($url, "?");
-    if($index === false){
+    if ($index === false) {
         return [];
     }
     $index = $index > 0 ? $index + 1 : strlen($url);
@@ -614,23 +637,17 @@ function url($url, $params = [])
  * @notes 处理响应内容
  * @param $data
  * @param $type
- * @return string
+ * @return array
  */
 function _response($data, $type = 'json')
 {
-    $response = null;
     switch ($type) {
         case 'json':
-            $response = json_encode($data, JSON_UNESCAPED_UNICODE);
-            break;
-        case 'html':
-            $response = $data;
+            $data = json_encode($data, JSON_UNESCAPED_UNICODE);
+            $type = 'html';
             break;
     }
-    if (is_null($response)) {
-        _error('无响应内容');
-    }
-    return $response;
+    return [$data, $type];
 }
 
 /** Response */
@@ -638,7 +655,7 @@ function _response($data, $type = 'json')
  * @notes action 出参包装
  * @param string $msg
  * @param int $code
- * @return false|string|null
+ * @return array
  */
 function error($msg = '', $code = 1)
 {
@@ -653,7 +670,7 @@ function error($msg = '', $code = 1)
  * @param array $data
  * @param int $code
  * @param string $msg
- * @return false|string|null
+ * @return array
  */
 function success($data = [], $code = 0, $msg = '')
 {
@@ -1024,7 +1041,7 @@ function _init()
 /** 框架执行 */
 function _run()
 {
-    if(function_exists('hosp\_custom')){
+    if (function_exists('hosp\_custom')) {
         call_user_func('hosp\_custom');
     }
     $files = config('app.extra_custom');
@@ -1085,12 +1102,18 @@ function _run()
             _end(error($result));
         }
 
-        _callback('event.before_action');
+        _callback('event.before_action', [
+            'action' => $url,
+            'input' => $params,
+        ]);
 
         /** 调用相应方法 */
         $object = action($url, $params);
 
-        _callback('event.after_action');
+        _callback('event.after_action', [
+            'action' => $url,
+            'output' => $object
+        ]);
 
         /** 响应内容 */
         _end($object);
@@ -1101,16 +1124,27 @@ function _run()
 
 /**
  * 结束执行
- * @param $content
+ * @param $response array
  * @author EdwardCho
  */
-function _end($content)
+function _end(array $response)
 {
     _callback('event.before_complete', [
-        'response' => $content
+        'response' => $response
     ]);
 
-    echo $content;
+    switch ($response[1]){
+        case 'html':
+            echo $response[0];
+            break;
+        case 'file':
+            if(is_array($GLOBALS['VIEW_ASSIGN'])){
+                //分解独立变量(作用域在这个函数内)
+                extract($GLOBALS['VIEW_ASSIGN'], EXTR_OVERWRITE);
+            }
+            require_once $response[0];
+            break;
+    }
 
     /** 页面缓存输出 */
     ob_end_flush();
@@ -1210,7 +1244,7 @@ function _router($route)
 function _error($content)
 {
     log($content, 'error');
-    _end($content);
+    _end([$content, 'html']);
 }
 
 /** API操作 */
@@ -1292,9 +1326,7 @@ function action($express, $params = [])
         config("action.{$express}", $params);
     } else {
         try {
-            _callback('event.before_action');
-
-            $params = array_merge(input(), is_array($params) ? $params : []);
+            $GLOBALS['REQUEST_USER_PARAMS'] = $params;
             $action = config("action.$express");
             $result = null;
             if (is_null($action)) {
@@ -1304,8 +1336,6 @@ function action($express, $params = [])
             } else {
                 _error('请求异常找不到action');
             }
-
-            _callback('event.after_action');
 
             return $result;
         } catch (Exception $e) {
@@ -1989,7 +2019,7 @@ function _hosp_resolve(string $express, array $params = [])
 
     //拆分get参数
     $index = stripos($express, '?');
-    if(is_numeric($index)){
+    if (is_numeric($index)) {
         $params = array_merge(get_string_to_array($express), $params);
         $express = substr($express, 0, $index);
     }
@@ -2008,7 +2038,7 @@ function _hosp_resolve(string $express, array $params = [])
 
             //自动填充缺省字段值
             $defaultValues = _db_table_default_values(db_table($table));
-            if(is_array($defaultValues)){
+            if (is_array($defaultValues)) {
                 foreach ($params as $name => $value) {
                     if (!in_array($name, array_keys($defaultValues))) {
                         unset($params[$name]);
@@ -2117,7 +2147,7 @@ function _hosp_resolve(string $express, array $params = [])
             _error("hosp表达式无法解析操作类型，表达式：{$express}");
     }
 
-    return [$sql, $data['option']?:[]];
+    return [$sql, $data['option'] ?: []];
 }
 
 /**
@@ -2127,10 +2157,11 @@ function _hosp_resolve(string $express, array $params = [])
  * @return string|string[]
  * @author EdwardCho
  */
-function _hosp_replace($express, $data){
+function _hosp_replace($express, $data)
+{
     $search = [];
     $replace = [];
-    foreach($data as $name => $value){
+    foreach ($data as $name => $value) {
         $search[] = "#[$name]";
         $replace[] = $value;
     }
@@ -2238,7 +2269,7 @@ function _hosp_simple_resolve(string $express)
 function _hosp_standard_resolve(string $express)
 {
 
-    if(!stripos($express, '{')){
+    if (!stripos($express, '{')) {
         return false;
     }
 
@@ -2250,13 +2281,13 @@ function _hosp_standard_resolve(string $express)
     if (count($typeAndSubs) > 0) {
         array_shift($typeAndSubs);
 
-        if(!stripos($typeAndSubs[0], '[')){
+        if (!stripos($typeAndSubs[0], '[')) {
             $typeAndOption = preg_replace_callback('/[A-Z!]/', function ($matches) {
                 return ' ' . strtolower($matches[0]);
             }, array_shift($typeAndSubs));
             list($type, $option) = explode(' ', $typeAndOption);
             $data['type'] = $type;
-            if(!empty($option)){
+            if (!empty($option)) {
                 $data['option'][$option] = true;
             }
         }
@@ -2306,10 +2337,10 @@ function _hosp_standard_resolve(string $express)
             '!~%' => function ($name, $param) {
                 return " `{$name}` NOT LIKE '#[$param]%' ";
             },
-            '#' => function($name, $param){
+            '#' => function ($name, $param) {
                 return " `{$name}` IN ({$param})";
             },
-            '!#' => function($name, $param){
+            '!#' => function ($name, $param) {
                 return " `{$name}` NOT IN ({$param})";
             }
         ];
@@ -2322,24 +2353,24 @@ function _hosp_standard_resolve(string $express)
             }, $data['by']);
             $bys = explode(' ', $byString);
             $where = '';
-            for($i=0;$i<count($bys);$i++){
+            for ($i = 0; $i < count($bys); $i++) {
                 $by = $bys[$i];
-                if($by === ''){
+                if ($by === '') {
                     continue;
                 }
 
-                if(!is_array($by)){
-                    if(in_array($by, $symbols)){
+                if (!is_array($by)) {
+                    if (in_array($by, $symbols)) {
 
                         $handler = $symbolHandlers[$by];
-                        if(is_string($handler)){
+                        if (is_string($handler)) {
                             $where .= $handler;
                             continue;
                         }
 
                         $bys[$i + 1] = [$by, $bys[$i + 1]];
                         continue;
-                    }else{
+                    } else {
                         $by = ['', $by];
                     }
                 }
@@ -2360,7 +2391,7 @@ function _hosp_standard_resolve(string $express)
             $where = ' 1=1';
             foreach ($bys as $i => $field) {
                 list($field, $param) = explode(':', $field);
-                if(empty($param)){
+                if (empty($param)) {
                     $param = $field;
                 }
                 if ($field == '!') {
@@ -2381,41 +2412,41 @@ function _hosp_standard_resolve(string $express)
         }
     }
 
-    if(isset($data['set'])){
+    if (isset($data['set'])) {
         $setString = '';
         $sets = explode(',', $data['set']);
-        foreach ($sets as $set){
+        foreach ($sets as $set) {
             list($field, $param) = explode(':', $set);
-            if(empty($param)){
+            if (empty($param)) {
                 $param = $field;
             }
             $setString .= ",`{$field}` = '#[{$param}]'";
         }
-        if(!empty($setString)){
+        if (!empty($setString)) {
             $setString = substr($setString, 1);
         }
         $data['set'] = $setString;
     }
 
-    if(isset($data['none'])){
+    if (isset($data['none'])) {
         $data['none'] = explode(',', $data['none']);
     }
 
-    if(isset($data['order'])){
+    if (isset($data['order'])) {
         $orders = explode(',', $data['order']);
         $orderString = '';
-        foreach ($orders as $order){
-            if(substr($order, 0, 1) == '!'){
+        foreach ($orders as $order) {
+            if (substr($order, 0, 1) == '!') {
                 $order = substr($order, 1);
                 $orderString .= " `{$order}` DESC";
-            }else{
+            } else {
                 $orderString .= " `{$order}` ASC";
             }
         }
         $data['order'] = $orderString;
     }
 
-    if(isset($data['only'])){
+    if (isset($data['only'])) {
         $data['only'] = explode(',', $data['only']);
     }
 
@@ -2456,10 +2487,10 @@ function _hosp_standard_resolve(string $express)
             '!~%' => function ($name, $param) {
                 return " `{$name}` NOT LIKE '#[$param]%' ";
             },
-            '#' => function($name, $param){
+            '#' => function ($name, $param) {
                 return " `{$name}` IN ({$param})";
             },
-            '!#' => function($name, $param){
+            '!#' => function ($name, $param) {
                 return " `{$name}` NOT IN ({$param})";
             }
         ];
@@ -2513,7 +2544,7 @@ function _hosp_standard_resolve(string $express)
 
             //简易模式
             $where = ' 1=1';
-            for($i=0;$i<count($havings);$i++){
+            for ($i = 0; $i < count($havings); $i++) {
                 $field = $havings[$i];
                 if ($field == '!') {
                     $havings[$i + 1] = ['!=', $havings[$i + 1]];
@@ -2533,20 +2564,37 @@ function _hosp_standard_resolve(string $express)
         }
     }
 
-    if(isset($data['limit'])){
+    if (isset($data['limit'])) {
         $content = '';
         $limits = explode(',', $data['limit']);
-        foreach ($limits as $limit){
-            if(empty($limit)){
+        foreach ($limits as $limit) {
+            if (empty($limit)) {
                 continue;
             }
             $content .= ",#[$limit]";
         }
-        if(!empty($content)){
+        if (!empty($content)) {
             $content = substr($content, 1);
         }
         $data['limit'] = $content;
     }
 
     return $data;
+}
+
+function assign($name, $value)
+{
+    if(!isset($GLOBALS['VIEW_ASSIGN'])){
+        $GLOBALS['VIEW_ASSIGN'] = [];
+     }
+    $GLOBALS['VIEW_ASSIGN'][$name] = $value;
+}
+
+function view($file)
+{
+    $file = config('view.path') . DS . $file . '.' . config('view.ext');
+    if(!file_exists($file)){
+        _error($file . '文件不存在');
+    }
+    return [$file, 'file'];
 }
