@@ -9,7 +9,6 @@ use function hosp\_hosp_simple_resolve;
 use function hosp\_hosp_standard_resolve;
 use function hosp\array_to_get_string;
 use function hosp\config;
-use function hosp\dump;
 use function hosp\hosp;
 
 class HospTest extends TestCase
@@ -134,7 +133,7 @@ class HospTest extends TestCase
         $express = '/user/insert';
         $result = _hosp_resolve($express, ['user' => 'asdf', 'id' => 2, 'ctime' => '123']);
         $this->assertEquals(
-            "INSERT INTO `hisi_user`(`user`,`id`,`ctime`) values('asdf','2','123')",
+            "INSERT INTO `tp_user`(`user`,`id`,`ctime`) values('asdf','2','123')",
             $result[0]
         );
         $this->assertEquals([], $result[1]);
@@ -142,7 +141,7 @@ class HospTest extends TestCase
         $express = '/user/insert?user=asdf&id=2&ctime=123';
         $result = _hosp_resolve($express);
         $this->assertEquals(
-            "INSERT INTO `hisi_user`(`user`,`id`,`ctime`) values('asdf','2','123')",
+            "INSERT INTO `tp_user`(`user`,`id`,`ctime`) values('asdf','2','123')",
             $result[0]
         );
         $this->assertEquals([], $result[1]);
@@ -153,20 +152,20 @@ class HospTest extends TestCase
         $express = "/user/deleteByIdName";
         $result = _hosp_resolve($express, ['id' => '1', 'name' => '2']);
         $this->assertEquals(
-            "DELETE FROM `hisi_user` WHERE  `id` = '1' AND `name` = '2'",
+            "DELETE FROM `tp_user` WHERE  `id` = '1' AND `name` = '2'",
             $result[0]
         );
 
         $express = "/user/deleteByIdName?id=1&name=2";
         $result = _hosp_resolve($express);
         $this->assertEquals(
-            "DELETE FROM `hisi_user` WHERE  `id` = '1' AND `name` = '2'",
+            "DELETE FROM `tp_user` WHERE  `id` = '1' AND `name` = '2'",
             $result[0]
         );
     }
 
     public function testHospResolveUpdate(){
-        $sql = "UPDATE `hisi_user` SET  `nickname` = '123' WHERE `id` = '1'";
+        $sql = "UPDATE `tp_user` SET  `nickname` = '123' WHERE `id` = '1'";
         $express = '/user/updateByIdSetNickname';
         $get = '?id=1&nickname=123';
         $data = ['id' => 1, 'nickname' => '123'];
@@ -179,7 +178,7 @@ class HospTest extends TestCase
         $express = '/user/update{by[id]set[nickname]}';
         $result = _hosp_resolve($express . $get);
         $this->assertEquals(
-            "UPDATE `hisi_user` SET `nickname` = '123' WHERE 1=1 AND id = '1'"
+            "UPDATE `tp_user` SET `nickname` = '123' WHERE 1=1 AND id = '1'"
             ,$result[0]);
     }
 

@@ -535,9 +535,8 @@ function input($name = null, $default = null)
         $json = empty($json) ? [] : $json;
 
         $params = array_merge($urlParams, $_GET, $_POST, $json);
-
-        $GLOBALS['REQUEST_PARAMS'] = _input_filter($params);
-
+        _input_filter($params);
+        $GLOBALS['REQUEST_PARAMS'] = $params;
     }
     if(isset($GLOBALS['REQUEST_USER_PARAMS'])){
         if(is_array($GLOBALS['REQUEST_USER_PARAMS'])){
@@ -554,23 +553,25 @@ function input($name = null, $default = null)
 /**
  * @notes 参数过滤
  * @param $params array
- * @return mixed
+ * @return void
  * @author EdwardCho
  */
-function _input_filter(array $params)
+function _input_filter(array &$params)
 {
     $filters = config('app.default_filter');
     $filters = explode(',', $filters);
-    foreach ($params as $name => $value) {
+    foreach ($params as &$param) {
         foreach ($filters as $filter) {
             if (empty($filter)) {
                 continue;
             }
-            $value = call_user_func($filter, $value);
+            if(is_array($param)){
+                _input_filter($param);
+            }else{
+                $param = call_user_func($filter, $param);
+            }
         }
-        $params[$name] = $value;
     }
-    return $params;
 }
 
 /**
@@ -1184,6 +1185,8 @@ function _route()
     $index = stripos($url, ".php");
     $url = substr($url, $index ? $index + 4 : 0);
     $url = (substr($url, 0, 1) == '/') ? substr($url, 1) : $url;
+    //伪静态
+    $url = str_ireplace(['.html', '.htm'], ['', ''], $url);
     list($controller, $method) = explode('/', $url);
 
     if (empty($controller)) {
@@ -1269,6 +1272,9 @@ function _router($route)
 function _error($content)
 {
     log($content, 'error');
+    if(!config('app.debug')){
+        $content = '';
+    }
     _end([$content, 'html']);
 }
 
@@ -2001,15 +2007,14 @@ function hosp($express, $params = [])
 
 /**
  * Hosp表达式执行
- * @param $sql string SQL语句
+ * @param string $sql string SQL语句
  * @param array $options 操作指令
  * @return string
  * @author EdwardCho
  */
-function _hosp_exec(string $sql, $options = [])
+function _hosp_exec($sql, $options = [])
 {
-
-    $result = _mysql_exec($sql);
+    $result = db_exec($sql);
     if (is_bool($result)) {
         $result = false;
     }
@@ -2041,7 +2046,6 @@ function _hosp_exec(string $sql, $options = [])
 function _hosp_resolve(string $express, array $params = [])
 {
     list($temp, $table, $express) = explode('/', $express);
-
     //拆分get参数
     $index = stripos($express, '?');
     if (is_numeric($index)) {
@@ -2063,7 +2067,7 @@ function _hosp_resolve(string $express, array $params = [])
 
             //自动填充缺省字段值
             $defaultValues = _db_table_default_values(db_table($table));
-            if (is_array($defaultValues)) {
+            if (is_array($defaultValues) && count($defaultValues) > 0) {
                 foreach ($params as $name => $value) {
                     if (!in_array($name, array_keys($defaultValues))) {
                         unset($params[$name]);
@@ -2076,7 +2080,6 @@ function _hosp_resolve(string $express, array $params = [])
                 $fields[] = "`$name`";
                 $values[] = "'{$value}'";
             }
-
             $sql = sprintf(
                 'INSERT INTO `%s`(%s) values(%s)',
                 db_table($table),
@@ -2607,6 +2610,12 @@ function _hosp_standard_resolve(string $express)
     return $data;
 }
 
+/**
+ * 变量注入
+ * @param $name
+ * @param $value
+ * @author EdwardCho
+ */
 function assign($name, $value)
 {
     if(!isset($GLOBALS['VIEW_ASSIGN'])){
@@ -2615,6 +2624,12 @@ function assign($name, $value)
     $GLOBALS['VIEW_ASSIGN'][$name] = $value;
 }
 
+/**
+ * 指定视图
+ * @param $file
+ * @return array
+ * @author EdwardCho
+ */
 function view($file)
 {
     $files = [];
@@ -2658,7 +2673,7 @@ function view($file)
             continue;
         }
 
-        $file = APP_PATH . config('view.path') . DS . $file . '.' . config('view.ext');
+        $file = config('view.path') . DS . $file . '.' . config('view.ext');
         if(!file_exists($file)){
             _error($file . '文件不存在');
         }

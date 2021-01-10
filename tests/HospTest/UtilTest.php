@@ -4,7 +4,6 @@ namespace HospTest;
 
 use PHPUnit\Framework\TestCase;
 use function hosp\_callback;
-use function hosp\_input_filter;
 use function hosp\_response;
 use function hosp\array_to_get_string;
 use function hosp\config;
@@ -14,7 +13,6 @@ use function hosp\false;
 use function hosp\input;
 use function hosp\is_get;
 use function hosp\is_post;
-use function hosp\router;
 use function hosp\session;
 use function hosp\success;
 use function hosp\true;
@@ -82,7 +80,7 @@ class UtilTest extends TestCase
         $data = ['a' => 1, 'b' => 2];
         $this->assertEquals(
             json_encode($data, JSON_UNESCAPED_UNICODE),
-            _response($data, 'json')
+            _response($data, 'json')[0]
         );
     }
 
@@ -91,7 +89,7 @@ class UtilTest extends TestCase
         $html = '123123';
         $this->assertEquals(
             $html,
-            _response($html, 'html')
+            _response($html, 'html')[0]
         );
     }
 
@@ -102,7 +100,7 @@ class UtilTest extends TestCase
         $expected = json_encode(['msg' => $msg, 'code' => $code], JSON_UNESCAPED_UNICODE);
         $this->assertEquals(
             $expected,
-            error($msg, $code)
+            error($msg, $code)[0]
         );
     }
 
@@ -113,9 +111,9 @@ class UtilTest extends TestCase
         $data = ['a' => 1, 'b' => 2];
         $actual = success($data, $code, $msg);
 
-        $this->assertEquals(true, is_string($actual));
+        $this->assertEquals(true, is_string($actual[0]));
 
-        $actual = json_decode($actual, true);
+        $actual = json_decode($actual[0], true);
         $this->assertEquals(true, is_array($actual));
 
         $this->assertEquals($msg, $actual['msg']);
@@ -149,7 +147,8 @@ class UtilTest extends TestCase
 
     }
 
-    public function testInputFilter(){
+    public function testInputFilter()
+    {
         $params = [
             'a' => htmlspecialchars('<html></html>'),
             'b' => ' b ',

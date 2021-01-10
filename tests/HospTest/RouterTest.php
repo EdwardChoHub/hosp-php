@@ -23,7 +23,7 @@ class RouterTest extends TestCase
     {
         $controller = 'a';
         $method = 'b';
-        config('router', []);
+        config('router', null);
         $router = _router([$controller, $method]);
         $this->assertEquals($controller, $router[0]);
         $this->assertEquals($method, $router[1]);
@@ -63,6 +63,7 @@ class RouterTest extends TestCase
     {
         $controller = 'a';
         $method = 'b';
+        config('router', null);
         config('router', ['/a/*' => '/b/*']);
         $router = _router([$controller, $method]);
         $this->assertEquals('b', $router[0]);
