@@ -8,6 +8,11 @@ use ReflectionFunction;
 
 _init();
 
+/** 内置用户自定义代码 */
+function _custom(){
+
+}
+
 /**
  * @notes 应用配置
  */
@@ -1021,6 +1026,9 @@ function _init()
 /** 框架执行 */
 function _run()
 {
+    if(function_exists('hosp\_custom')){
+        call_user_func('hosp\_custom');
+    }
     $files = config('app.extra_custom');
     if (!is_array($files)) {
         $files = [$files];
