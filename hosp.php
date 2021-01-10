@@ -262,12 +262,9 @@ config('event', [
     },
     'before_model' => function ($model, $input) {
     },
-    'after_model' => function ($model, $output) {
-    },
-    'before_hosp' => function ($express, $input) {
-    },
-    'after_hosp' => function ($express, $output) {
-    },
+    'after_model' => function ($model, $output) {},
+    'before_hosp' => function ($express, $input) {},
+    'after_hosp' => function ($express, $output) {},
     'before_sql' => function ($sql) {
     },
     'after_sql' => function ($sql, $result) {
@@ -501,16 +498,7 @@ function input($name = null, $default = null)
         $url = $_SERVER['REQUEST_URI'];
 
         //拿到URL中的入参信息
-        $index = stripos($url, "?");
-        $index = $index > 0 ? $index + 1 : strlen($url);
-        $string = substr($url, $index);
-        $urlParams = [];
-        foreach (explode("&", $string) as $item) {
-            list($tempName, $value) = explode("=", $item);
-            if (isset($tempName) && isset($value)) {
-                $urlParams[$tempName] = $value;
-            }
-        }
+        $urlParams = get_string_to_array($url);
 
         //入参参数优先级 json > post > get > urlParams(url中的参数，处理加密url中没有被php解析到的参数)
         $json = json_decode(file_get_contents("php://input"), true);
@@ -562,6 +550,30 @@ function array_to_get_string(array $params)
     }
     $paramsStr = '?' . substr($paramsStr, 1);
     return $paramsStr;
+}
+
+/**
+ * @notes get入参转数组
+ * @param $url string
+ * @return array
+ * @author EdwardCho
+ */
+function get_string_to_array(string $url){
+    //拿到URL中的入参信息
+    $index = stripos($url, "?");
+    if($index === false){
+        return [];
+    }
+    $index = $index > 0 ? $index + 1 : strlen($url);
+    $string = substr($url, $index);
+    $params = [];
+    foreach (explode("&", $string) as $item) {
+        list($tempName, $value) = explode("=", $item);
+        if (isset($tempName) && isset($value)) {
+            $params[$tempName] = $value;
+        }
+    }
+    return $params;
 }
 
 /**
@@ -1910,12 +1922,18 @@ function _db_auto_query($table, $data)
 function hosp($express, $params = [])
 {
 
-    callback('event.before_hosp');
+    _callback('event.before_hosp', [
+        'express' => $express,
+        'input' => $params
+    ]);
 
     list($sql, $options) = _hosp_resolve($express, $params);
     $result = _hosp_exec($sql, $options);
 
-    callback('event.after_hosp');
+    _callback('event.after_hosp', [
+        'express' => $express,
+        'output' => $result
+    ]);
 
     return $result;
 }
@@ -1954,72 +1972,90 @@ function _hosp_exec(string $sql, $options = [])
 
 /**
  * @notes 解析器入口
- * @param $expression string
+ * @param string $express
  * @param array $params
  * @return array
  * @example 'select { only[user_id,id,name] none[nick]by[user_id,noned_id,ip] }'
  */
-function _hosp_resolve(string $expression, array $params)
+function _hosp_resolve(string $express, array $params = [])
 {
-    list($temp, $table, $expression) = explode('/', $expression);
-    unset($temp);
+    list($temp, $table, $express) = explode('/', $express);
 
+    //拆分get参数
+    $index = stripos($express, '?');
+    if(is_numeric($index)){
+        $params = array_merge(get_string_to_array($express), $params);
+        $express = substr($express, 0, $index);
+    }
 
-    if (!strpos($expression, '{')) {
+    if (!strpos($express, '{')) {
         //非高级表达式使用简易解析器
-        $data = _hosp_simple_resolve($expression);
+        $data = _hosp_simple_resolve($express);
     } else {
-        $data = _hosp_standard_resolve($expression);
+        $data = _hosp_standard_resolve($express);
     }
     $sql = '';
-    switch ($data['option']['type']) {
+    switch ($data['type']) {
         case 'insert':
             $fields = [];
             $values = [];
-            foreach ($params as $name => $value) {
-                $fields[] = $name;
-                $values[] = $value;
+
+            //自动填充缺省字段值
+            $defaultValues = _db_table_default_values(db_table($table));
+            if(is_array($defaultValues)){
+                foreach ($params as $name => $value) {
+                    if (!in_array($name, array_keys($defaultValues))) {
+                        unset($params[$name]);
+                    }
+                }
+                $params = array_merge($defaultValues, $params);
             }
+
+            foreach ($params as $name => $value) {
+                $fields[] = "`$name`";
+                $values[] = "'{$value}'";
+            }
+
             $sql = sprintf(
-                'INSERT INTO __TABLE__(%s) values(%s)',
+                'INSERT INTO `%s`(%s) values(%s)',
+                db_table($table),
                 implode(',', $fields),
                 implode(',', $values)
             );
             break;
         case 'delete':
-            if ($this->trueDelete) {
-                $sql = sprintf('DELETE FROM `%s`', $this->trueTableName);
+            $softDelete = _db_soft_delete($table);
+            if (!$softDelete) {
+                $sql = sprintf(
+                    'DELETE FROM `%s`',
+                    db_table($table)
+                );
             } else {
-                $result = $this->getTableFalseDeleteField();
-                if ($result) {
-                    $sql = sprintf('UPDATE `%s` SET `%s` = "%s"', $this->trueTableName, $result[0], $result[1]);
-                } else {
-                    $sql = sprintf('DELETE FROM `%s`', $this->trueTableName);
-                }
+                $sql = sprintf(
+                    'UPDATE `%s` SET `%s` = "%s"',
+                    db_table($table),
+                    $softDelete[0],
+                    time()
+                );
             }
-
-            $where = $this->apinoExpression->by();
-            if ($where) {
-                $sql .= ' WHERE' . $where;
+            if ($data['by']) {
+                $sql .= ' WHERE ' . _hosp_replace($data['by'], $params);
             }
             break;
         case 'update':
-            $sql = sprintf("UPDATE `__TABLE__` SET %s", $data['set']);
+            $sql = sprintf(
+                "UPDATE `%s` SET %s",
+                db_table($table),
+                _hosp_replace($data['set'], $params)
+            );
 
-            if (!empty($data['where'])) {
-                $searches = [];
-                $values = [];
-                foreach ($params as $name => $value) {
-                    $searches[] = '#{' . $name . '}';
-                    $values[] = $value;
-                }
-                $data['by'] = str_replace($searches, $values, $data['by']);
-                $sql .= ' WHERE' . $data['by'];
+            if (!empty($data['by'])) {
+                $sql .= ' WHERE' . _hosp_replace($data['by'], $params);
             }
             break;
         case 'select':
 
-            $sql = "SELECT %s FROM `__TABLE__`";
+            $sql = "SELECT %s FROM `%s`";
 
             //是否设定指定得字段
             $fields = $data['field'];
@@ -2030,7 +2066,7 @@ function _hosp_resolve(string $expression, array $params)
             if (array_search('COUNT', $data['option'])) {
                 $fields = 'COUNT(*) as `count`';
             }
-            $sql = sprintf($sql, $fields);
+            $sql = sprintf($sql, $fields, db_table($table));
 
             $by = $data['by'];
             if (!empty($by)) {
@@ -2068,15 +2104,31 @@ function _hosp_resolve(string $expression, array $params)
                 $sql .= " LIMIT 1";
             }
 
+            $sql = _hosp_replace($sql, $params);
 
             break;
         default :
-            _error("hosp表达式无法解析操作类型，表达式：{$expression}");
+            _error("hosp表达式无法解析操作类型，表达式：{$express}");
     }
 
-    $sql = str_replace('__TABLE__', $table, $sql);
+    return [$sql, $data['option']?:[]];
+}
 
-    return [$sql, $data['option']];
+/**
+ * 替换变量
+ * @param $express
+ * @param $data
+ * @return string|string[]
+ * @author EdwardCho
+ */
+function _hosp_replace($express, $data){
+    $search = [];
+    $replace = [];
+    foreach($data as $name => $value){
+        $search[] = "#[$name]";
+        $replace[] = $value;
+    }
+    return str_ireplace($search, $replace, $express);
 }
 
 /**
@@ -2179,14 +2231,14 @@ function _hosp_simple_resolve(string $express)
  */
 function _hosp_standard_resolve(string $express)
 {
+
     if(!stripos($express, '{')){
         return false;
     }
 
     $data = [];
-    $subs = [];
     //去除空格
-    $expression = str_ireplace(' ', '', $express);
+    $expression = str_ireplace([' ', "\n", "\r"], '', $express);
     //取出事件名和子表达式
     preg_match('/(.*){(.*?)}/', $expression, $typeAndSubs);
     if (count($typeAndSubs) > 0) {
@@ -2198,7 +2250,9 @@ function _hosp_standard_resolve(string $express)
             }, array_shift($typeAndSubs));
             list($type, $option) = explode(' ', $typeAndOption);
             $data['type'] = $type;
-            $data['option'][$option] = true;
+            if(!empty($option)){
+                $data['option'][$option] = true;
+            }
         }
         //子表达式进行分组
         preg_match_all('/(\w.*?)\[(.*?)]/', $typeAndSubs[0], $matches);
@@ -2246,6 +2300,12 @@ function _hosp_standard_resolve(string $express)
             '!~%' => function ($name, $param) {
                 return " `{$name}` NOT LIKE '#[$param]%' ";
             },
+            '#' => function($name, $param){
+                return " `{$name}` IN ({$param})";
+            },
+            '!#' => function($name, $param){
+                return " `{$name}` NOT IN ({$param})";
+            }
         ];
         $symbols = array_keys($symbolHandlers);
         $regex = '/[' . implode('', $symbols) . ']/';
@@ -2289,15 +2349,14 @@ function _hosp_standard_resolve(string $express)
             }
             $data['by'] = $where;
         } else {
-            //区分每个单词（在大写字母前加一个空格，并转成小写）
-            $byString = preg_replace_callback('/[A-Z!]/', function ($matches) {
-                return ' ' . strtolower($matches[0]);
-            }, $subs['by']);
-            $bys = explode(' ', $byString);
-
+            $bys = explode(',', $data['by']);
             //简易模式
             $where = ' 1=1';
             foreach ($bys as $i => $field) {
+                list($field, $param) = explode(':', $field);
+                if(empty($param)){
+                    $param = $field;
+                }
                 if ($field == '!') {
                     $bys[$i + 1] = ['!=', $bys[$i + 1]];
                     continue;
@@ -2310,15 +2369,181 @@ function _hosp_standard_resolve(string $express)
                 $symbol = $field[0];
                 $field = $field[1];
 
+                $where .= " AND {$field} {$symbol} '#[{$param}]'";
+            }
+            $data['by'] = $where;
+        }
+    }
+
+    if(isset($data['set'])){
+        $setString = '';
+        $sets = explode(',', $data['set']);
+        foreach ($sets as $set){
+            list($field, $param) = explode(':', $set);
+            if(empty($param)){
+                $param = $field;
+            }
+            $setString .= ",`{$field}` = '#[{$param}]'";
+        }
+        if(!empty($setString)){
+            $setString = substr($setString, 1);
+        }
+        $data['set'] = $setString;
+    }
+
+    if(isset($data['none'])){
+        $data['none'] = explode(',', $data['none']);
+    }
+
+    if(isset($data['order'])){
+        $orders = explode(',', $data['order']);
+        $orderString = '';
+        foreach ($orders as $order){
+            if(substr($order, 0, 1) == '!'){
+                $order = substr($order, 1);
+                $orderString .= " `{$order}` DESC";
+            }else{
+                $orderString .= " `{$order}` ASC";
+            }
+        }
+        $data['order'] = $orderString;
+    }
+
+    if(isset($data['only'])){
+        $data['only'] = explode(',', $data['only']);
+    }
+
+    if (isset($data['having'])) {
+        $havings = $data['having'];
+        //符号对应的实际字符串
+        $symbolHandlers = [
+            '(' => '(',
+            ')' => ')',
+            '' => function ($name, $param) {
+                return "`{$name}` = '#[{$param}]'";
+            },
+            '|' => function ($name, $param) {
+                return " OR `{$name}` = '#[{$param}]'";
+            },
+            '&' => function ($name, $param) {
+                return " AND `{$name}` = '#[{$param}]'";
+            },
+            '!' => function ($name, $param) {
+                return " `{$name}` != '#[{$param}]' ";
+
+            },
+            '~' => function ($name, $param) {
+                return " `{$name}` LIKE '%#[$param]%' ";
+            },
+            '%~' => function ($name, $param) {
+                return " `{$name}` LIKE '%#[$param]' ";
+            },
+            '~%' => function ($name, $param) {
+                return " `{$name}` LIKE '#[$param]%' ";
+            },
+            '!~' => function ($name, $param) {
+                return " `{$name}` NOT LIKE '%#[$param]%' ";
+            },
+            '!%~' => function ($name, $param) {
+                return " `{$name}` NOT LIKE '%#[$param]' ";
+            },
+            '!~%' => function ($name, $param) {
+                return " `{$name}` NOT LIKE '#[$param]%' ";
+            },
+            '#' => function($name, $param){
+                return " `{$name}` IN ({$param})";
+            },
+            '!#' => function($name, $param){
+                return " `{$name}` NOT IN ({$param})";
+            }
+        ];
+        $symbols = array_keys($symbolHandlers);
+        $regex = '/[' . implode('', $symbols) . ']/';
+        if (preg_match($regex, $havings)) {
+            //区分每个单词（在大写字母前加一个空格，并转成小写）
+            $havingString = preg_replace_callback($regex, function ($content) {
+                return ' ' . $content[0] . ' ';
+            }, $havings);
+            $havings = explode(' ', $havingString);
+            $where = '';
+            for ($i = 0; $i < count($havings); $i++) {
+                $having = $havings[$i];
+                if ($having === '') {
+                    continue;
+                }
+
+                if (!is_array($having)) {
+                    if (in_array($having, $symbols)) {
+
+                        $handler = $symbolHandlers[$having];
+                        if (is_string($handler)) {
+                            $where .= $handler;
+                            continue;
+                        }
+
+                        $havings[$i + 1] = [$having, $havings[$i + 1]];
+                        continue;
+                    } else {
+                        $having = ['', $having];
+                    }
+                }
+
+                $handler = $symbolHandlers[$having[0]];
+
+                list($field, $param) = explode(':', $having[1]);
+                if (empty($param)) {
+                    $param = $field;
+                }
+
+                $where .= $handler($field, $param);
+            }
+            $data['having'] = $where;
+        } else {
+            //区分每个单词（在大写字母前加一个空格，并转成小写）
+            $havingString = preg_replace_callback('/[A-Z!]/', function ($matches) {
+                return ' ' . strtolower($matches[0]);
+            }, $data['having']);
+            $havings = explode(' ', $havingString);
+
+            //简易模式
+            $where = ' 1=1';
+            for($i=0;$i<count($havings);$i++){
+                $field = $havings[$i];
+                if ($field == '!') {
+                    $havings[$i + 1] = ['!=', $havings[$i + 1]];
+                    continue;
+                } else {
+                    $havings[$i + 1] = ['=', $havings[$i + 1]];
+                    if (!is_array($field)) {
+                        $field = ['=', $field];
+                    }
+                }
+                $symbol = $field[0];
+                $field = $field[1];
+
                 $where .= " AND {$field} {$symbol} '#[{$field}]'";
             }
-            $subs['by'] = $where;
+            $data['having'] = $where;
         }
+    }
+
+    if(isset($data['limit'])){
+        $content = '';
+        $limits = explode(',', $data['limit']);
+        foreach ($limits as $limit){
+            if(empty($limit)){
+                continue;
+            }
+            $content .= ",#[$limit]";
+        }
+        if(!empty($content)){
+            $content = substr($content, 1);
+        }
+        $data['limit'] = $content;
     }
 
     return $data;
 }
-
 
 /**
  * @notes 检查配置项(仅开发模式检查)
