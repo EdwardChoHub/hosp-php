@@ -20,7 +20,7 @@ function _custom()
 config('app', [
     /** 外部文件（无顺序要求）, 建议对代码进行分类存储，例如action,model存一起，app,database配置类存一起 */
     'extra_custom' => [
-        '/custom.php'
+        'custom.php',
     ],
     //调试模式，会检测配置信息
     'debug' => true,
@@ -880,12 +880,17 @@ function _user_sync()
     if(is_bool($access)){
         session('user_authority', true);
     }
+    if(!is_array($access)){
+        $access = [];
+    }
 
     $except = config('authority.except');
     if(is_callable($except)){
         $except = $except();
     }
-
+    if(!is_array($except)){
+        $except = [];
+    }
     session('user_authority', array_merge($access, $except));
 }
 
@@ -1092,19 +1097,19 @@ function _run()
         $url = '/' . implode('/', $route);
 
         /** 事件钩子 */
-        _callback('event.after_router');
+        _callback('event.after_router', ['route' => $route]);
 
         /** 事件钩子 */
-        _callback('event.before_authority');
+        _callback('event.before_authority', ['action' => $url]);
 
         /** 同步当前用户角色权限信息 */
         _user_sync();
 
         /** 权限判断 */
-        $result = _user_access($route);
+        $result = _user_access($url);
 
         /** 事件钩子 */
-        _callback('event.after_authority');
+        _callback('event.after_authority', ['action' => $url, 'result' => $result]);
 
         if (!$result) {
             _end(error('当前用户没有该权限'));
@@ -1179,14 +1184,21 @@ function _route()
     $index = stripos($url, ".php");
     $url = substr($url, $index ? $index + 4 : 0);
     $url = (substr($url, 0, 1) == '/') ? substr($url, 1) : $url;
-    list($controller, $action) = explode('/', $url);
+    list($controller, $method) = explode('/', $url);
+
+    if (empty($controller)) {
+        $controller = config('app.default_controller');
+    }
+    if (empty($method)) {
+        $method = config('app.default_method');
+    }
 
     //URL格式检验
-    if (empty($controller) || empty($action)) {
+    if (empty($controller) || empty($method)) {
         _error("无法正常解析URL，检查URL格式是否正确");
     }
 
-    return [$controller, $action];
+    return [$controller, $method];
 }
 
 /**
@@ -1197,12 +1209,6 @@ function _route()
 function _router($route)
 {
     list($currentController, $currentMethod) = $route;
-    if (is_null($currentController)) {
-        $currentController = config('app.default_controller');
-    }
-    if (is_null($currentMethod)) {
-        $currentMethod = config('app.default_method');
-    }
     if ($currentMethod === '') {
         $currentMethod = '*';
     }
@@ -2605,7 +2611,7 @@ function assign($name, $value)
 {
     if(!isset($GLOBALS['VIEW_ASSIGN'])){
         $GLOBALS['VIEW_ASSIGN'] = [];
-     }
+    }
     $GLOBALS['VIEW_ASSIGN'][$name] = $value;
 }
 
