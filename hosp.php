@@ -2658,7 +2658,7 @@ function view($file)
             continue;
         }
 
-        $file = config('view.path') . DS . $file . '.' . config('view.ext');
+        $file = APP_PATH . config('view.path') . DS . $file . '.' . config('view.ext');
         if(!file_exists($file)){
             _error($file . '文件不存在');
         }
