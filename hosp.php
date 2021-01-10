@@ -865,12 +865,19 @@ function _user_access($url)
 function _user_sync()
 {
     $access = config('authority.access');
-    $except = config('authority.except');
+    if(is_callable($access)){
+        $access = $access();
+    }
+    if(is_bool($access)){
+        session('user_authority', true);
+    }
 
-    session('user_authority', array_merge(
-        is_callable($access) ? $access() : [],
-        is_callable($except) ? $except() : []
-    ));
+    $except = config('authority.except');
+    if(is_callable($except)){
+        $except = $except();
+    }
+
+    session('user_authority', array_merge($access, $except));
 }
 
 
