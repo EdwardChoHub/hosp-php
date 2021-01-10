@@ -51,12 +51,19 @@ config('app', [
     /** 默认控制器方法 */
     'default_method' => 'index',
 ]);
-
+/**
+ * @notes 视图配置
+ */
 config('view', [
     /** 视图根目录 */
     'path' => APP_PATH . '/view',
     /** 视图文件后缀（仅支持php） */
     'ext' => 'php',
+    /** 模板引入头部和尾部 */
+    'layout' => [
+        'top' => '',
+        'bottom' => ''
+    ],
     /** 公共函数，自动调用 */
     'common' => function(){}
 ]);
@@ -1151,7 +1158,10 @@ function _end(array $response)
                 //分解独立变量(作用域在这个函数内)
                 extract($GLOBALS['VIEW_ASSIGN'], EXTR_OVERWRITE);
             }
-            require_once $response[0];
+            $files = $response[0];
+            foreach ($files as $file){
+                require_once $file;
+            }
             break;
     }
 
@@ -2601,14 +2611,52 @@ function assign($name, $value)
 
 function view($file)
 {
+    $files = [];
+
     $common = config('view.common');
     if(is_callable($common)){
         $common();
     }
 
-    $file = config('view.path') . DS . $file . '.' . config('view.ext');
-    if(!file_exists($file)){
-        _error($file . '文件不存在');
+    /** 模板头部 */
+    $layout = config('view.layout');
+    if(isset($layout['top'])){
+        if(!is_array($layout['top'])){
+            if(is_string($layout['top']) && !empty(trim($layout['top']))){
+                $files[] = $layout['top'];
+            }
+        }else{
+            foreach ($layout['top'] as $file){
+                $files[] = $file;
+            }
+        }
     }
-    return [$file, 'file'];
+    /** 主体 */
+    $files[] = $file;
+
+    /** 模板尾部 */
+    if(isset($layout['bottom'])){
+        if(!is_array($layout['bottom'])){
+            if(is_string($layout['bottom']) && !empty(trim($layout['bottom']))){
+                $files[] = $layout['bottom'];
+            }
+        }else{
+            foreach ($layout['bottom'] as $file){
+                $files[] = $file;
+            }
+        }
+    }
+
+    foreach ($files as &$file){
+        if(!is_string($file) || empty(trim($file))){
+            continue;
+        }
+
+        $file = config('view.path') . DS . $file . '.' . config('view.ext');
+        if(!file_exists($file)){
+            _error($file . '文件不存在');
+        }
+    }
+
+    return [$files, 'file'];
 }
