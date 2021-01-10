@@ -989,8 +989,6 @@ function _init()
     if (config('app.debug')) {
         ini_set("display__errors", "On");
         error_reporting(E_ALL);
-        //配置检查员(app.debug开启后才会执行)
-        _check_config();
     }
 
     /** 生成ID */
@@ -2551,26 +2549,4 @@ function _hosp_standard_resolve(string $express)
     }
 
     return $data;
-}
-
-/**
- * @notes 检查配置项(仅开发模式检查)
- * @author EdwardCho
- *
- */
-function _check_config()
-{
-    $ruleList = [
-        ['类型名', '地址', '判断函数(|分隔，满足一个即可)', '错误提示'],
-        ['开发模式', 'app.debug', 'is_bool', '开发模式必须为布尔型'],
-    ];
-
-    //除去第一行标题
-    array_shift($ruleList);
-
-    foreach ($ruleList as $rule) {
-        if (!call_user_func($ruleList[2], config($rule[1]))) {
-            _error($rule[3]);
-        }
-    }
 }
