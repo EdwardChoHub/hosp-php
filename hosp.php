@@ -634,13 +634,13 @@ function url($url, $params = [])
         $url = '/' . $url;
     }
 
-    $url = '/' . FILE_NAME . '.php' . $url;
+    $url = '/' .  ENTRANCE_FILE  . $url;
 
     if (count($params)) {
         $url .= array_to_get_string($params);
     }
 
-    return urlencode($url);
+    return $url;
 }
 
 /**
@@ -981,6 +981,21 @@ function _init()
 
     define('APP_PATH', __DIR__);
     define('FILE_NAME', str_ireplace('.php', '', array_pop($temp)));
+    define('FILE', array_pop($temp));
+
+    //当前入口文件名
+    $temp = explode('/', $_SERVER['REQUEST_URI']);
+    foreach ($temp as $item){
+        if(stripos($item, '.php')){
+            define('ENTRANCE_FILE', $item);
+            define('ENTRANCE', str_ireplace('.php', '', $item));
+            break;
+        }
+    }
+    if(!defined('ENTRANCE_FILE')){
+        define('ENTRANCE_FILE', FILE_NAME);
+        define('ENTRANCE', FILE);
+    }
 
     /** 是否事引用（判断依据非第一个文件） */
     define('IS_REQUIRE', get_required_files()[0] != __FILE__);
@@ -2630,7 +2645,7 @@ function assign($name, $value)
  * @return array
  * @author EdwardCho
  */
-function view($file)
+function view($file, $layout = true)
 {
     $files = [];
 
@@ -2639,35 +2654,38 @@ function view($file)
         $common();
     }
 
-    /** 模板头部 */
-    $layout = config('view.layout');
-    if(isset($layout['top'])){
-        if(!is_array($layout['top'])){
-            if(is_string($layout['top']) && !empty(trim($layout['top']))){
-                $files[] = $layout['top'];
-            }
-        }else{
-            foreach ($layout['top'] as $file){
-                $files[] = $file;
+    if($layout) {
+        /** 模板头部 */
+        $layout = config('view.layout');
+        if (isset($layout['top'])) {
+            if (!is_array($layout['top'])) {
+                if (is_string($layout['top']) && !empty(trim($layout['top']))) {
+                    $files[] = $layout['top'];
+                }
+            } else {
+                foreach ($layout['top'] as $file) {
+                    $files[] = $file;
+                }
             }
         }
     }
     /** 主体 */
     $files[] = $file;
 
-    /** 模板尾部 */
-    if(isset($layout['bottom'])){
-        if(!is_array($layout['bottom'])){
-            if(is_string($layout['bottom']) && !empty(trim($layout['bottom']))){
-                $files[] = $layout['bottom'];
-            }
-        }else{
-            foreach ($layout['bottom'] as $file){
-                $files[] = $file;
+    if($layout) {
+        /** 模板尾部 */
+        if (isset($layout['bottom'])) {
+            if (!is_array($layout['bottom'])) {
+                if (is_string($layout['bottom']) && !empty(trim($layout['bottom']))) {
+                    $files[] = $layout['bottom'];
+                }
+            } else {
+                foreach ($layout['bottom'] as $file) {
+                    $files[] = $file;
+                }
             }
         }
     }
-
     foreach ($files as &$file){
         if(!is_string($file) || empty(trim($file))){
             continue;
