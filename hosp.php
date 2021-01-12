@@ -387,10 +387,7 @@ function config($name = '', $value = '')
  */
 function session($name = null, $value = '')
 {
-    if (session_status() == PHP_SESSION_DISABLED) {
-        session_start();
-    }
-
+    session_start();
 
     if (empty($name)) {
         return $_SESSION['apino'];
@@ -997,9 +994,6 @@ function _init()
         define('ENTRANCE', FILE);
     }
 
-    /** 是否事引用（判断依据非第一个文件） */
-    define('IS_REQUIRE', get_required_files()[0] != __FILE__);
-
     /** Composer */
     if (is_file(__DIR__ . '/vendor/autoload.php')) {
         require_once __DIR__ . '/vendor/autoload.php';
@@ -1094,68 +1088,71 @@ function _run()
     }
 
 
-    if (!IS_REQUIRE) {
-        /** 页面不进行直接渲染 */
-        ob_start();
+    /** 页面不进行直接渲染 */
+    ob_start();
 
-        /** 初始化钩子 */
-        _callback('event.after_init');
+    /** 初始化钩子 */
+    _callback('event.after_init');
 
-        /** 事件钩子 */
-        _callback('event.before_router');
+    /** 事件钩子 */
+    _callback('event.before_router');
 
-        /** 获取路由信息 */
-        $route = _route();
+    /** 获取路由信息 */
+    $route = _route();
 
-        /** 路由转换 */
-        $route = _router($route);
+    /** 路由转换 */
+    $route = _router($route);
 
-        $url = '/' . implode('/', $route);
+    $url = '/' . implode('/', $route);
 
-        /** 事件钩子 */
-        _callback('event.after_router', ['route' => $route]);
+    define('ACTION', $url);
 
-        /** 事件钩子 */
-        _callback('event.before_authority', ['action' => $url]);
+    /** 事件钩子 */
+    _callback('event.after_router', ['route' => $route]);
 
-        /** 同步当前用户角色权限信息 */
-        _user_sync();
+    /** 事件钩子 */
+    _callback('event.before_authority', ['action' => $url]);
 
-        /** 权限判断 */
-        $result = _user_access($url);
+    /** 同步当前用户角色权限信息 */
+    _user_sync();
 
-        /** 事件钩子 */
-        _callback('event.after_authority', ['action' => $url, 'result' => $result]);
+    /** 权限判断 */
+    $result = _user_access($url);
 
-        if (!$result) {
-            _end(error('当前用户没有该权限'));
-        }
+    /** 事件钩子 */
+    _callback('event.after_authority', ['action' => $url, 'result' => $result]);
 
-        $params = input();
-
-        /** 入参校验器 */
-        list($success, $result) = validate($route, $params);
-        if (!$success) {
-            _end(error($result));
-        }
-
-        _callback('event.before_action', [
-            'action' => $url,
-            'input' => $params,
-        ]);
-
-        /** 调用相应方法 */
-        $object = action($url, $params);
-
-        _callback('event.after_action', [
-            'action' => $url,
-            'output' => $object
-        ]);
-
-        /** 响应内容 */
-        _end($object);
-
+    if (!$result) {
+        _end(error('当前用户没有该权限'));
     }
+
+    $params = input();
+
+    /** 入参校验器 */
+    list($success, $result) = validate($route, $params);
+    if (!$success) {
+        _end(error($result));
+    }
+
+    _callback('event.before_action', [
+        'action' => $url,
+        'input' => $params,
+    ]);
+
+    /** 调用相应方法 */
+    $object = action($url, $params);
+    if(!$object){
+        _end(error('请求接口不存在'));
+    }
+
+    _callback('event.after_action', [
+        'action' => $url,
+        'output' => $object
+    ]);
+
+    /** 响应内容 */
+    _end($object);
+
 
 }
 
@@ -1375,12 +1372,10 @@ function action($express, $params = [])
             $GLOBALS['REQUEST_USER_PARAMS'] = $params;
             $action = config("action.$express");
             $result = null;
-            if (is_null($action)) {
-                $result = model($express, $params);
-            } elseif (is_callable($action)) {
+            if (is_callable($action)) {
                 $result = $action($params);
             } else {
-                _error('请求异常找不到action');
+                return error('请求异常，找不到Action：' . $express);
             }
 
             return $result;
@@ -2637,6 +2632,13 @@ function assign($name, $value)
         $GLOBALS['VIEW_ASSIGN'] = [];
     }
     $GLOBALS['VIEW_ASSIGN'][$name] = $value;
+}
+
+function has_assign($name){
+    if(!isset($GLOBALS['VIEW_ASSIGN'])){
+        return false;
+    }
+    return isset($GLOBALS['VIEW_ASSIGN'][$name]);
 }
 
 /**
