@@ -65,7 +65,8 @@ config('view', [
         'bottom' => ''
     ],
     /** 公共函数，自动调用 */
-    'common' => function(){}
+    'common' => function () {
+    }
 ]);
 
 /**
@@ -519,10 +520,10 @@ function input($name = null, $default = null)
     if (!isset($GLOBALS['REQUEST_PARAMS'])) {
         $url = $_SERVER['REQUEST_URI'];
 
-        if(!is_null($url)){
+        if (!is_null($url)) {
             //拿到URL中的入参信息
             $urlParams = get_string_to_array($url);
-        }else{
+        } else {
             $urlParams = [];
         }
 
@@ -535,8 +536,8 @@ function input($name = null, $default = null)
         _input_filter($params);
         $GLOBALS['REQUEST_PARAMS'] = $params;
     }
-    if(isset($GLOBALS['REQUEST_USER_PARAMS'])){
-        if(is_array($GLOBALS['REQUEST_USER_PARAMS'])){
+    if (isset($GLOBALS['REQUEST_USER_PARAMS'])) {
+        if (is_array($GLOBALS['REQUEST_USER_PARAMS'])) {
             $GLOBALS['REQUEST_PARAMS'] = array_merge($GLOBALS['REQUEST_PARAMS'], $GLOBALS['REQUEST_USER_PARAMS']);
         }
         unset($GLOBALS['REQUEST_USER_PARAMS']);
@@ -562,9 +563,9 @@ function _input_filter(array &$params)
             if (empty($filter)) {
                 continue;
             }
-            if(is_array($param)){
+            if (is_array($param)) {
                 _input_filter($param);
-            }else{
+            } else {
                 $param = call_user_func($filter, $param);
             }
         }
@@ -617,7 +618,7 @@ function get_string_to_array(string $url)
  * @param array $params 拼接参数
  * @return string
  */
-function url($url, $params = [])
+function url($url = null, $params = [])
 {
     $urls = config('url');
     foreach ($urls as $name => $value) {
@@ -626,12 +627,15 @@ function url($url, $params = [])
             break;
         }
     }
+    if (is_null($url)) {
+        $url = ACTION;
+    }
 
     if (substr($url, 0, 1) != '/') {
         $url = '/' . $url;
     }
 
-    $url = '/' .  ENTRANCE_FILE  . $url;
+    $url = '/' . ENTRANCE_FILE . $url;
 
     if (count($params)) {
         $url .= array_to_get_string($params);
@@ -679,7 +683,7 @@ function error($msg = '', $code = 1)
  * @param string $msg
  * @return array
  */
-function success($data = [], $code = 0, $msg = '')
+function success($msg = '', $data = [], $code = 0)
 {
     return _response([
         'data' => $data,
@@ -872,21 +876,21 @@ function _user_access($url)
 function _user_sync()
 {
     $access = config('authority.access');
-    if(is_callable($access)){
+    if (is_callable($access)) {
         $access = $access();
     }
-    if(is_bool($access)){
+    if (is_bool($access)) {
         session('user_authority', true);
     }
-    if(!is_array($access)){
+    if (!is_array($access)) {
         $access = [];
     }
 
     $except = config('authority.except');
-    if(is_callable($except)){
+    if (is_callable($except)) {
         $except = $except();
     }
-    if(!is_array($except)){
+    if (!is_array($except)) {
         $except = [];
     }
     session('user_authority', array_merge($access, $except));
@@ -982,14 +986,14 @@ function _init()
 
     //当前入口文件名
     $temp = explode('/', $_SERVER['REQUEST_URI']);
-    foreach ($temp as $item){
-        if(stripos($item, '.php')){
+    foreach ($temp as $item) {
+        if (stripos($item, '.php')) {
             define('ENTRANCE_FILE', $item);
             define('ENTRANCE', str_ireplace('.php', '', $item));
             break;
         }
     }
-    if(!defined('ENTRANCE_FILE')){
+    if (!defined('ENTRANCE_FILE')) {
         define('ENTRANCE_FILE', FILE_NAME);
         define('ENTRANCE', FILE);
     }
@@ -1141,7 +1145,7 @@ function _run()
 
     /** 调用相应方法 */
     $object = action($url, $params);
-    if(!$object){
+    if (!$object) {
         _end(error('请求接口不存在'));
     }
 
@@ -1167,17 +1171,17 @@ function _end(array $response)
         'response' => $response
     ]);
 
-    switch ($response[1]){
+    switch ($response[1]) {
         case 'html':
             echo $response[0];
             break;
         case 'file':
-            if(is_array($GLOBALS['VIEW_ASSIGN'])){
+            if (is_array($GLOBALS['VIEW_ASSIGN'])) {
                 //分解独立变量(作用域在这个函数内)
                 extract($GLOBALS['VIEW_ASSIGN'], EXTR_OVERWRITE);
             }
             $files = $response[0];
-            foreach ($files as $file){
+            foreach ($files as $file) {
                 require_once $file;
             }
             break;
@@ -1284,7 +1288,7 @@ function _router($route)
 function _error($content)
 {
     log($content, 'error');
-    if(!config('app.debug')){
+    if (!config('app.debug')) {
         $content = '';
     }
     _end([$content, 'html']);
@@ -1373,7 +1377,15 @@ function action($express, $params = [])
             $action = config("action.$express");
             $result = null;
             if (is_callable($action)) {
-                $result = $action($params);
+                $args = $params;
+                $reflectFunction = new ReflectionFunction($action);
+                foreach ($reflectFunction->getParameters() as $param) {
+                    if (!isset($args[$param->getName()])) {
+                        $args[$param->getName()] = null;
+                    }
+                }
+
+                $result = call_user_func_array($action, $args);
             } else {
                 return error('请求异常，找不到Action：' . $express);
             }
@@ -1660,13 +1672,16 @@ function _db_auto_timestamp($table, $insert = false)
     if (!isset($timestamps[$table])) {
         $data = [];
     } else {
-        $data = [
-            $timestamps[$table]['update_time'] => time(),
-        ];
+        $data = [];
+        if (isset($timestamps[$table]['update_time'])) {
+            $timestamps[$table]['update_time'] = time();
+        }
+
         if ($insert) {
             $data[$timestamps[$table]['create_time']] = time();
         }
     }
+
     return $data;
 }
 
@@ -2628,14 +2643,15 @@ function _hosp_standard_resolve(string $express)
  */
 function assign($name, $value)
 {
-    if(!isset($GLOBALS['VIEW_ASSIGN'])){
+    if (!isset($GLOBALS['VIEW_ASSIGN'])) {
         $GLOBALS['VIEW_ASSIGN'] = [];
     }
     $GLOBALS['VIEW_ASSIGN'][$name] = $value;
 }
 
-function has_assign($name){
-    if(!isset($GLOBALS['VIEW_ASSIGN'])){
+function has_assign($name)
+{
+    if (!isset($GLOBALS['VIEW_ASSIGN'])) {
         return false;
     }
     return isset($GLOBALS['VIEW_ASSIGN'][$name]);
@@ -2652,11 +2668,11 @@ function view($file, $layout = true)
     $files = [];
 
     $common = config('view.common');
-    if(is_callable($common)){
+    if (is_callable($common)) {
         $common();
     }
 
-    if($layout) {
+    if ($layout) {
         /** 模板头部 */
         $layout = config('view.layout');
         if (isset($layout['top'])) {
@@ -2674,7 +2690,7 @@ function view($file, $layout = true)
     /** 主体 */
     $files[] = $file;
 
-    if($layout) {
+    if ($layout) {
         /** 模板尾部 */
         if (isset($layout['bottom'])) {
             if (!is_array($layout['bottom'])) {
@@ -2688,13 +2704,13 @@ function view($file, $layout = true)
             }
         }
     }
-    foreach ($files as &$file){
-        if(!is_string($file) || empty(trim($file))){
+    foreach ($files as &$file) {
+        if (!is_string($file) || empty(trim($file))) {
             continue;
         }
 
         $file = config('view.path') . DS . $file . '.' . config('view.ext');
-        if(!file_exists($file)){
+        if (!file_exists($file)) {
             _error($file . '文件不存在');
         }
     }
