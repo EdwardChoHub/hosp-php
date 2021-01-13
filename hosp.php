@@ -621,9 +621,10 @@ function get_string_to_array(string $url)
  * url组装，优先使用注册的url
  * @param $url
  * @param array $params 拼接参数
+ * @param bool $extendParams 继承先有的入参
  * @return string
  */
-function url($url = null, $params = [])
+function url($url = null, $params = [], $extendParams = false)
 {
     $urls = config('url');
     foreach ($urls as $name => $value) {
@@ -632,7 +633,7 @@ function url($url = null, $params = [])
             break;
         }
     }
-    if (is_null($url)) {
+    if (empty($url)) {
         $url = ACTION;
     }
 
@@ -641,6 +642,10 @@ function url($url = null, $params = [])
     }
 
     $url = '/' . ENTRANCE_FILE . $url;
+
+    if($extendParams){
+        $params = array_merge(input(), $params);
+    }
 
     if (count($params)) {
         $url .= array_to_get_string($params);
@@ -1395,7 +1400,8 @@ function action($express, $params = [])
                 $reflectFunction = new ReflectionFunction($action);
                 foreach ($reflectFunction->getParameters() as $param) {
                     $name = $param->getName();
-                    $args[$name] = isset($params[$name]) ? $params[$name] : null;
+                    $defaultValue = $param->isDefaultValueAvailable() ?$param->getDefaultValue() : null;
+                    $args[$name] = isset($params[$name]) ? $params[$name] : $defaultValue;
                 }
 
                 $result = call_user_func_array($action, $args);
@@ -1952,9 +1958,10 @@ function db_select($table, $where = '', $field = '', $order = '', $group = '', $
  * @return string
  * @author EdwardCho
  */
-function db_count($table, $where, $count = '')
+function db_count($table, $where, $count = '*')
 {
-    return db_select($table, $where, "COUNT({$count}) as `hosp_count`", '', '', 1)['hosp_count'] ?: 0;
+    $result = db_select($table, $where, "COUNT({$count}) as `hosp_count`", '', '', 1);
+    return intval(isset($result[0]['hosp_count']) ?$result[0]['hosp_count'] : 0);
 }
 
 /**
@@ -2768,4 +2775,47 @@ function view($file, $layout = true)
     }
 
     return [$files, 'file'];
+}
+
+/**
+ * 分页工具
+ * @param null $total
+ * @param null $page
+ * @param null $size
+ * @param int $pageNumber 显示最大页数
+ * @return mixed
+ * @author EdwardCho
+ */
+function paging($total = null, $page = null, $size  = null, $pageNumber = 5){
+    if(is_null($total)){
+        if(!isset($GLOBALS['paging'])){
+            _error('请先配置分页信息');
+        }
+        return $GLOBALS['paging'];
+    }
+    $totalPage = ceil($total / $size);
+
+    $median = floor($pageNumber / 2);
+
+    if ($totalPage <= $median) {
+        $start = 1;
+        $end = $totalPage;
+    } elseif ($page >= $totalPage - $median) {
+        $start = max($totalPage - $pageNumber, 1);
+        $end = $totalPage;
+    } else {
+        $start = $page - $median;
+        $end = $page + $median;
+    }
+    $GLOBALS['paging'] = [
+        'total' => $total,
+        'total_page' => $totalPage,
+        'page' => $page,
+        'size' => $size,
+        'first' => $page > 1,
+        'final' => $page < $totalPage,
+        'prev' => $page > 1,
+        'next' => $totalPage > $page,
+        'list' => range($start, $end),
+    ];
 }
