@@ -1558,6 +1558,7 @@ function _mysql_delete($table, $where)
     return db_exec($sql);
 }
 
+
 /**
  * @param $table
  * @param $data
@@ -1570,7 +1571,13 @@ function _mysql_update($table, $data, $where)
     $sql = "UPDATE `{$table}` SET ";
 
     foreach ($data as $name => $value) {
-        $sql .= " `{$name}` = '{$value}',";
+        if(is_array($value)){
+            if($value[0] == 'exp'){
+                $sql .= " `{$name}` = {$value[1]},";
+            }
+        }elseif(is_string($value)){
+            $sql .= " `{$name}` = '{$value}',";
+        }
     }
     if (substr($sql, -1, 1) == ',') {
         $sql = substr($sql, 0, strlen($sql) - 1);
