@@ -1172,11 +1172,14 @@ function _run()
 
 /**
  * 结束执行
- * @param $response array
+ * @param $response mixed
  * @author EdwardCho
  */
-function _end(array $response)
+function _end($response)
 {
+    if(is_string($response)){
+        $response = [$response, 'html'];
+    }
     _callback('event.before_complete', [
         'response' => $response
     ]);
@@ -1758,10 +1761,11 @@ function db_allow_fields($table, $bool = null)
 /**
  * 查询表字段默认值
  * @param $table
+ * @param bool $hasAutoincrement 包含自增字段
  * @return false|array
  * @author EdwardCho
  */
-function _db_table_default_values($table)
+function _db_table_default_values($table, $hasAutoincrement = false)
 {
     $sql = sprintf('
             SELECT COLUMN_NAME,COLUMN_DEFAULT,DATA_TYPE,IS_NULLABLE,EXTRA,COLUMN_KEY
@@ -1778,10 +1782,13 @@ function _db_table_default_values($table)
     foreach ($fields as $field) {
         $fieldName = $field['COLUMN_NAME'];
 
-        if (stristr($field['EXTRA'], 'auto_increment')) {
-            //属性携带自增长属性，则跳过
-            continue;
+        if(!$hasAutoincrement){
+            if (stristr($field['EXTRA'], 'auto_increment')) {
+                //属性携带自增长属性，则跳过
+                continue;
+            }
         }
+
 
         if (!config('database.autoCompleteNoNull')) {
             if ($field['IS_NULLABLE'] == 'YES') {
