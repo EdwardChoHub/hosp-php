@@ -396,16 +396,17 @@ function session($name = null, $value = '')
     session_id() || session_start();
 
     if (empty($name)) {
-        return $_SESSION['apino'];
+        return $_SESSION['hosp'];
     }
 
-    if ($_SESSION['apino'] == null) {
-        $_SESSION['apino'] = [];
+
+    if (!isset($_SESSION['hosp'])) {
+        $_SESSION['hosp'] = [];
     }
     //使用索引去操作
     $indexList = explode('.', $name);
     if ($value !== '') {
-        $config = &$_SESSION['apino'];
+        $config = &$_SESSION['hosp'];
         $count = count($indexList);
         for ($i = 0; $i < $count - 1; $i++) {
             if (empty($indexList[$i])) {
@@ -416,7 +417,7 @@ function session($name = null, $value = '')
         $config[$indexList[$count - 1]] = $value;
         return null;
     } else {
-        $config = $_SESSION['apino'];
+        $config = $_SESSION['hosp'];
         foreach ($indexList as $index) {
             if (!isset($config[$index])) {
                 return null;
