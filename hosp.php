@@ -91,124 +91,11 @@ config('database', [
     ],
 ]);
 
-/**
- * @notes 配置路由
- */
-config('router', [
-]);
+/** @notes 配置路由 */
+config('router', []);
 
-
-/**
- * @notes 控制器方法注册，不建议直接修改，请重写编写该action进行覆盖，方便后期升级
- *
- */
-config('action', [
-    /** 上传图片 */
-    '/system/upload_image' => function () {
-        $param = 'file';
-        $path = APP_PATH;
-        $dir = DS . 'upload' . DS;
-        $exts = ['jpg', 'png', 'jpeg', 'ico', 'gif'];
-
-
-        $maxSize = 4096;
-        list($result, $error) = upload_file_valid($param, $exts, $maxSize);
-        if (!$result) {
-            return error($error);
-        }
-
-        list($name, $ext) = upload_file_name_ext($param);
-
-        $filename = $dir . md5($name) . '.' . $ext;
-
-        if (!upload_file_move($param, $path . $filename)) {
-            return error('上传失败');
-        }
-
-        return true([
-            'url' => $filename
-        ]);
-    },
-    /** 验证码图片 */
-    '/system/verify_code_image' => function () {
-        /** 验证码长度 */
-        $number = 4;
-        $width = input('width', 200);
-        $height = input('height', 100);
-        $codes = implode(
-            "",
-            array_merge(
-                range(0, 9),
-                range("a", "z"),
-                range("A", "Z")
-            )
-        );
-        $code = substr(str_shuffle($codes), 0, $number);
-
-        /** 保存验证码 */
-        verify_code_save($code);
-
-        /** 输出验证图片 */
-        verify_code_image($code, $width, $height);
-    },
-    /** 注册 */
-    '/system/register' => function () {
-//        $username = input('username');
-//        $password = input('password');
-//        $encode = 'md5';
-//
-//        if (empty($username)) {
-//            return error('账户名不能为空');
-//        }
-//
-//        if (strval($username) < 8 and strval($username) > 16) {
-//            return error('账户名有效长度为8-16位');
-//        }
-//
-//        if (empty($password)) {
-//            return error('密码不能为空');
-//        }
-//        if (strval($password) != 32) {
-//            return error('密码长度异常');
-//        }
-        verify_code_check('');
-//        $password = call_user_func($encode, $password);
-//
-//        /** 补充注册逻辑 */
-//
-//        return success();
-    },
-    /** 登录 */
-    '/system/login' => function () {
-//        $username = input('username');
-//        $password = input('password');
-//        if (empty($username)) {
-//            return error('请输入用户名');
-//        }
-//        if (empty($password)) {
-//            return error('请输入密码');
-//        }
-//
-//        /** 缺失登录逻辑 */
-//
-//        /** 用户用户ID */
-//        $id = 0;
-//
-//        /** 保存用户信息 */
-        user_login(0, '');
-//
-//        return success();
-    },
-    /** 登出 */
-    '/system/logout' => function () {
-        user_logout();
-        return success();
-    },
-    /** 检查登录 */
-    '/system/check_login' => function () {
-        return !empty(user_id()) ? success() : error();
-    }
-]);
+/** @notes 控制器方法注册，不建议直接修改，请重写编写该action进行覆盖，方便后期升级 */
+config('action', []);
 
 /**
  * @notes 模型方法注册
@@ -656,151 +543,6 @@ function router($before, $after)
     config('router', $router);
 }
 
-/**
- * @notes 上传文件保存
- * @param $name string 文件名
- * @param $destination string 目标文件路径
- * @return bool
- * @author EdwardCho
- */
-function upload_file_move(string $name, string $destination)
-{
-    if (!isset($_FILES[$name])) {
-        _error("{$name}文件不存在");
-    }
-    $temp = explode("/", $destination);
-    array_pop($temp);
-    $path = implode("/", $temp);
-
-    if (!is_dir($path)) {
-        mkdir($path, 0777, true);
-    }
-
-    $res = move_uploaded_file($_FILES[$name]['tmp_name'], $destination);
-    if (!$res) {
-        _error('系统权限不足，无法上传文件');
-    }
-    return $res;
-}
-
-/**
- * 获取上传文件名与拓展名
- * @param $name
- * @return array
- * @author EdwardCho
- */
-function upload_file_name_ext($name)
-{
-    $file = $_FILES[$name];
-
-    if (empty($file)) {
-        _error("{$name}文件不存在");
-    }
-
-    $data = explode('.', $file['name']);
-
-    $ext = array_pop($data);
-
-    $name = implode('.', $data);
-
-    return [$name, $ext];
-}
-
-/**
- * @notes 上传文件有效性校验
- * @param $name string 文件名
- * @param array $exts
- * @param null $maxSize
- * @return array
- * @author EdwardCho
- */
-function upload_file_valid(string $name, $exts = [], $maxSize = null)
-{
-    $file = $_FILES[$name];
-    if (!isset($file)) {
-        return false("{$name}文件不存在");
-    }
-    $temp = explode(".", $name);
-    $ext = array_pop($temp);
-    if (!in_array($ext, $exts)) {
-        return false("上传文件的格式为{$ext}, 非合法格式：" . implode(",", $exts));
-    }
-    if (!is_null($maxSize) && $file['size'] > $maxSize) {
-        return false("上传文件大小为{$file['size']}，已超过$maxSize");
-    }
-    return true();
-}
-
-/** Verify Code */
-
-/**
- * @notes 图片验证码
- * @param $code
- * @param $width
- * @param $height
- */
-function verify_code_image($code, $width, $height)
-{
-    //创建画布
-    $image = imagecreatetruecolor($width, $height);
-    //白色背景
-    $white = imagecolorallocate($image, 255, 255, 255);
-    //字体颜色
-    $font_color = imagecolorallocate(
-        $image,
-        rand(0, 255),
-        rand(0, 255),
-        rand(0, imagefill($image, 0, 0, $white))
-    );
-    //字体类型和大小
-    imagestring($image, 5, 10, 10, $code, $font_color);
-//    imagettftext($image, 24, 0, 5, 20, $font_color, "/.ttf", $_SESSION['system']['imgCode']);
-    //干扰线
-    for ($i = 0; $i < 80; $i++) {
-        $color = imagecolorallocate($image, rand(0, 255), rand(0, 255), rand(0, 255));
-        imagesetpixel($image, rand(0, $width), rand(0, $height), $color);
-    }
-    for ($i = 0; $i < 5; $i++) {
-        $color = imagecolorallocate($image, rand(0, 255), rand(0, 255), rand(0, 255));
-        imageline($image, rand(0, $width), rand(0, $height), rand(0, $width), rand(0, $height), $color);
-    }
-    ob_clean();
-    header("Content-type: image/png");
-    imagepng($image);
-    imagedestroy($image);
-}
-
-/**
- * 验证码保存
- * @param $code
- * @author EdwardCho
- */
-function verify_code_save($code)
-{
-    session('verify_code', $code);
-}
-
-/**
- * @notes 校验验证码
- * @param $code
- * @return array
- */
-function verify_code_check($code)
-{
-    $sessCode = session('verify_code');
-    if (empty($sessCode)) {
-        return false('请先获取验证码');
-    }
-    if (empty($code)) {
-        return false('验证码不能为空');
-    }
-    if ($sessCode != $code) {
-        return false('验证码不正确');
-    } else {
-        return true();
-    }
-}
-
 
 /** Framework */
 
@@ -1182,7 +924,6 @@ function event($name, $args = [])
     }
 }
 
-
 /**
  * @notes 控制器方法（注册|调用）
  * @param $express
@@ -1357,7 +1098,6 @@ function _mysql_delete($table, $where)
     }
     return db_exec($sql);
 }
-
 
 /**
  * @param $table
@@ -2506,48 +2246,4 @@ function _hosp_standard_resolve(string $express)
     }
 
     return $data;
-}
-
-/**
- * 分页工具
- * @param null $total
- * @param null $page
- * @param null $size
- * @param int $pageNumber 显示最大页数
- * @return mixed
- * @author EdwardCho
- */
-function paging($total = null, $page = null, $size = null, $pageNumber = 5)
-{
-    if (is_null($total)) {
-        if (!isset($GLOBALS['paging'])) {
-            _error('请先配置分页信息');
-        }
-        return $GLOBALS['paging'];
-    }
-    $totalPage = ceil($total / $size);
-
-    $median = floor($pageNumber / 2);
-
-    if ($totalPage <= $median) {
-        $start = 1;
-        $end = $totalPage;
-    } elseif ($page >= $totalPage - $median) {
-        $start = max($totalPage - $pageNumber, 1);
-        $end = $totalPage;
-    } else {
-        $start = $page - $median;
-        $end = $page + $median;
-    }
-    $GLOBALS['paging'] = [
-        'total' => $total,
-        'total_page' => $totalPage,
-        'page' => $page,
-        'size' => $size,
-        'first' => $page > 1,
-        'final' => $page < $totalPage,
-        'prev' => $page > 1,
-        'next' => $totalPage > $page,
-        'list' => range($start, $end),
-    ];
 }
