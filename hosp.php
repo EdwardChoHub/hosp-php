@@ -24,17 +24,6 @@ config('app', [
     ],
     //调试模式，会检测配置信息
     'debug' => true,
-    //完全自定义action 不使用预设action 关闭后预设api无法使用
-    'custom_action' => false,
-    /** 请求Token验证 */
-    'token' => [
-        /** 开关 */
-        'switch' => true,
-        /** 生成器 */
-        'generator' => function () {
-            return md5(rand(0, 123));
-        }
-    ],
     //默认全局过滤器 逗号分隔
     'default_filter' => 'htmlspecialchars_decode,trim',
     // 默认返回类型
@@ -51,23 +40,7 @@ config('app', [
     /** 默认控制器方法 */
     'default_method' => 'index',
 ]);
-/**
- * @notes 视图配置
- */
-config('view', [
-    /** 视图根目录 */
-    'path' => APP_PATH . '/view',
-    /** 视图文件后缀（仅支持php） */
-    'ext' => 'php',
-    /** 模板引入头部和尾部 */
-    'layout' => [
-        'top' => '',
-        'bottom' => ''
-    ],
-    /** 公共函数，自动调用 */
-    'common' => function () {
-    }
-]);
+
 
 /**
  * @notes 数据库配置
@@ -80,40 +53,41 @@ config('database', [
     'username' => 'root',
     'password' => 'root',
     //表名前缀
-    'table_prefix' => 'hisi_',
+    'table_prefix' => 'hosp_',
     //打开得编码形式
-    'charset' => 'utf-8',
-    /** 配置非假删值，软删除记录删除10位时间戳 */
-    'soft_delete' => [
-        'table_name.field' => 0
-    ],
-    /**
-     * 生成软删除值，支持不同表不同生成函数(可数组形式)
-     */
-    'soft_delete_value' => function () {
-        return time();
-    },
-//    'soft_delete_value' => [
-//        'table' => function(){}
-//    ]
-    /** 自动事件 */
-    'auto_event' => [
-        /** 自动填充字段去除null */
-        'no_null' => true,
-        /** 自动补全插入(插入时参数补全系统自动插入默认值) */
-        'complete_insert' => true,
-        /** 自动插入时间戳 */
-        'timestamp' => [
-            'user' => [
+    'charset' => 'utf8mb4',
+    /** 功能声明 */
+    'declare' => [
+        //全局配置
+        '' => [
+            /** 自动填充字段去除null */
+            'no_null' => true,
+            /** 自动补全插入(插入时参数补全系统自动插入默认值) */
+            'complete_insert' => true,
+            /** 自动时间戳 array|false 全局配置 */
+            'auto_timestamp' => [
                 'create_time' => 'ctime',
                 'update_time' => 'mtime',
+                'delete_time' => 'dtime'
+            ],
+            //自动关联查询，设定关联后会自动查询或者遵守格式(user_id为用户表的ID字段，user_ids则为用户表的ID集合值格式为(1,2,3,4))
+            'relation' => [
+                //源ID(主键) => [外键1 => 表.关系1, 外键2 => 关系2]
+                'role_id' => 'role.id',
             ],
         ],
-        //自动关联查询，设定关联后会自动查询或者遵守格式(user_id为用户表的ID字段，user_ids则为用户表的ID集合，值格式为(1,2,3,4))
-        'query' => [
-            //源ID(主键) => [外键1 => 关系1, 外键2 => 关系2]
-            'user.role_id' => 'role.id',
-        ],
+        'user' => [
+            /** 自动时间戳（覆盖全局） array|bool */
+            'auto_timestamp' => [
+                'create_time' => 'ctime',
+                'update_time' => 'mtime',
+                'delete_time' => 'dtime'
+            ],
+            //自动关联查询，设定关联后会自动查询或者遵守格式(user_id为用户表的ID字段，user_ids则为用户表的ID集合值格式为(1,2,3,4))
+            'relation' => [
+                'user.role_id' => 'role.id',
+            ],
+        ]
     ],
 ]);
 
@@ -123,25 +97,6 @@ config('database', [
 config('router', [
 ]);
 
-/**
- * @notes 角色权限声明，1则为全部权限，0或[]组则无任何权限
- */
-config('authority', [
-    /**
-     * @notes 角色权限控制(支持静态权限和动态权限)
-     * @return array
-     */
-    'access' => function () {
-        //用户自定义权限
-    },
-    /**
-     * @notes 不拦截列表
-     * @return array
-     */
-    'except' => function () {
-
-    },
-]);
 
 /**
  * @notes 控制器方法注册，不建议直接修改，请重写编写该action进行覆盖，方便后期升级
@@ -280,10 +235,7 @@ config('event', [
     },
     'after_router' => function ($route) {
     },
-    'before_authority' => function ($action) {
-    },
-    'after_authority' => function ($action, $result) {
-    },
+
     'before_action' => function ($action, $input) {
     },
     'after_action' => function ($action, $output) {
@@ -304,10 +256,15 @@ config('event', [
     }
 ]);
 
-/**
- * @notes 自定义钩子
- */
-config('hook', []);
+/** @notes 监听者 */
+config('listen', [
+    'after_init' => [
+        function () {
+
+        },
+    ]
+]);
+
 
 /**
  * @notes URL映射
@@ -528,7 +485,7 @@ function input($name = null, $default = null)
 
         if (!is_null($url)) {
             //拿到URL中的入参信息
-            $urlParams = get_string_to_array($url);
+            parse_str($url, $urlParams);
         } else {
             $urlParams = [];
         }
@@ -578,45 +535,6 @@ function _input_filter(array &$params)
     }
 }
 
-/**
- * 数组转入参字符串
- * @param $params array
- * @return string
- */
-function array_to_get_string(array $params)
-{
-    $paramsStr = '';
-    foreach ($params as $name => $value) {
-        $paramsStr .= "&{$name}={$value}";
-    }
-    $paramsStr = '?' . substr($paramsStr, 1);
-    return $paramsStr;
-}
-
-/**
- * @notes get入参转数组
- * @param $url string
- * @return array
- * @author EdwardCho
- */
-function get_string_to_array(string $url)
-{
-    //拿到URL中的入参信息
-    $index = stripos($url, "?");
-    if ($index === false) {
-        return [];
-    }
-    $index = $index > 0 ? $index + 1 : strlen($url);
-    $string = substr($url, $index);
-    $params = [];
-    foreach (explode("&", $string) as $item) {
-        list($tempName, $value) = explode("=", $item);
-        if (isset($tempName) && isset($value)) {
-            $params[$tempName] = $value;
-        }
-    }
-    return $params;
-}
 
 /**
  * url组装，优先使用注册的url
@@ -644,12 +562,12 @@ function url($url = null, $params = [], $extendParams = false)
 
     $url = '/' . ENTRANCE_FILE . $url;
 
-    if($extendParams){
+    if ($extendParams) {
         $params = array_merge(input(), $params);
     }
 
     if (count($params)) {
-        $url .= array_to_get_string($params);
+        $url .= '?' . http_build_query($params);
     }
 
     return $url;
@@ -808,107 +726,13 @@ function upload_file_valid(string $name, $exts = [], $maxSize = null)
         return false("上传文件的格式为{$ext}, 非合法格式：" . implode(",", $exts));
     }
     if (!is_null($maxSize) && $file['size'] > $maxSize) {
-        return false("上传文件大小为{$this->size}，已超过$maxSize");
+        return false("上传文件大小为{$file['size']}，已超过$maxSize");
     }
     return true();
 }
 
-
-/** User */
-/**
- * @notes ID
- * @param string $id
- * @return int|string|void
- */
-function user_id($id = '')
-{
-    if ($id === '') {
-        return session('user_id');
-    } else {
-        return session('user_id', $id);
-    }
-}
-
-/**
- * @notes 登录
- * @param $id
- * @param mixed $role
- */
-function user_login($id, $role = '')
-{
-    user_id($id);
-    user_role($role);
-}
-
-/**
- * @notes 退出登录
- */
-function user_logout()
-{
-    user_id(null);
-    user_role(null);
-    _user_authority(false);
-    session_destroy();
-}
-
-/**
- * @notes 角色
- * @param string|int $role
- * @return string|void
- */
-function user_role($role = '')
-{
-    return $role === '' ? session('user_role') : session('user_role', $role);
-}
-
-/**
- * @notes 权限
- * @param array|bool|mixed $authority
- * @return array|bool|void
- */
-function _user_authority($authority = '')
-{
-    return session('user_authority', $authority);
-}
-
-/**
- * @notes 全部权限(true)、无任何权限(false)、指定权限列表(array)
- * @param $url
- * @return bool
- */
-function _user_access($url)
-{
-    return is_bool(_user_authority()) ? _user_authority() : in_array($url, _user_authority());
-}
-
-/**
- * @notes 用户信息同步
- */
-function _user_sync()
-{
-    $access = config('authority.access');
-    if (is_callable($access)) {
-        $access = $access();
-    }
-    if (is_bool($access)) {
-        session('user_authority', true);
-    }
-    if (!is_array($access)) {
-        $access = [];
-    }
-
-    $except = config('authority.except');
-    if (is_callable($except)) {
-        $except = $except();
-    }
-    if (!is_array($except)) {
-        $except = [];
-    }
-    session('user_authority', array_merge($access, $except));
-}
-
-
 /** Verify Code */
+
 /**
  * @notes 图片验证码
  * @param $code
@@ -1028,9 +852,6 @@ function _init()
     //validate支持的所有正则
     define('VALIDATE_TYPE_ARRAY', [REQ, INT, FLOAT, MOBILE, EMAIL, ARR]);
 
-    //表关联常量
-    define('ONE_TO_ONE', 11); //一对一
-    define('ONE_TO_MANY', 13); //一对多
 
     /** 日志类型(等级) */
     define('LOG_NORMAL', 1);
@@ -1041,11 +862,11 @@ function _init()
     /** 权限不足 */
     define('HTTP_CODE_FORBIDDEN', 403);
     /** 服务器错误 */
-    define('HTTP_CODE_ERROR', 500);
+    define('HTTP_CODE_ERROR', 502);
     /** 失败 */
-    define('HTTP_CODE_FAIL', 1);
+    define('HTTP_CODE_FAIL', 500);
     /** 成功 */
-    define('HTTP_CODE_SUCCESS', 0);
+    define('HTTP_CODE_SUCCESS', 200);
 
     /** 生成ID */
     if (!defined('ID')) {
@@ -1125,22 +946,6 @@ function _run()
     /** 事件钩子 */
     _callback('event.after_router', ['route' => $route]);
 
-    /** 事件钩子 */
-    _callback('event.before_authority', ['action' => $url]);
-
-    /** 同步当前用户角色权限信息 */
-    _user_sync();
-
-    /** 权限判断 */
-    $result = _user_access($url);
-
-    /** 事件钩子 */
-    _callback('event.after_authority', ['action' => $url, 'result' => $result]);
-
-    if (!$result) {
-        _end(error('当前用户没有该权限'));
-    }
-
     $params = input();
 
     /** 入参校验器 */
@@ -1178,7 +983,7 @@ function _run()
  */
 function _end($response)
 {
-    if(is_string($response)){
+    if (is_string($response)) {
         $response = [$response, 'html'];
     }
     _callback('event.before_complete', [
@@ -1188,17 +993,6 @@ function _end($response)
     switch ($response[1]) {
         case 'html':
             echo $response[0];
-            break;
-        case 'file':
-
-            if (is_array($GLOBALS['VIEW_ASSIGN'])) {
-                //分解独立变量(作用域在这个函数内)
-                extract($GLOBALS['VIEW_ASSIGN'], EXTR_OVERWRITE);
-            }
-            $files = $response[0];
-            foreach ($files as $file) {
-                require_once $file;
-            }
             break;
     }
 
@@ -1283,7 +1077,7 @@ function _router($route)
             //路由转发支持转发到其他http网站
             if (stripos($after, 'http') > -1) {
                 //将入参填充到url中
-                header('Location:' . $after . array_to_get_string(input()));
+                header('Location:' . $after . '?' . http_build_query(input()));
                 die();
             }
 
@@ -1365,24 +1159,29 @@ function validate($url, $params)
 }
 
 /**
- * 钩子调用和注册
+ * @notes 触发事件
  * @param $name
- * @param $args callback|array
+ * @param array $args
+ * @version
+ * @author EdwardCho
+ * @date 2021/6/4 21:00
  */
-function hook($name, $args = [])
+function event($name, $args = [])
 {
-    if (is_callable($args)) {
-        config("hook.{$name}", $args);
-    } else {
-        try {
-            $function = config("hook.{$name}");
+    try {
+        $functions = config("listen.{$name}");
+        if (!is_array($functions)) {
+            $functions = [$functions];
+        }
+        foreach ($functions as $function) {
             $rf = new ReflectionFunction($function);
             $rf->invokeArgs($args);
-        } catch (Exception $e) {
-            _error("调用{$name}钩子异常");
         }
+    } catch (Exception $e) {
+        _error("调用{$name}钩子异常，错误内容：" . $e->getMessage());
     }
 }
+
 
 /**
  * @notes 控制器方法（注册|调用）
@@ -1404,7 +1203,7 @@ function action($express, $params = [])
                 $reflectFunction = new ReflectionFunction($action);
                 foreach ($reflectFunction->getParameters() as $param) {
                     $name = $param->getName();
-                    $defaultValue = $param->isDefaultValueAvailable() ?$param->getDefaultValue() : null;
+                    $defaultValue = $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null;
                     $args[$name] = isset($params[$name]) ? $params[$name] : $defaultValue;
                 }
 
@@ -1572,11 +1371,11 @@ function _mysql_update($table, $data, $where)
     $sql = "UPDATE `{$table}` SET ";
 
     foreach ($data as $name => $value) {
-        if(is_array($value)){
-            if($value[0] == 'exp'){
+        if (is_array($value)) {
+            if ($value[0] == 'exp') {
                 $sql .= " `{$name}` = {$value[1]},";
             }
-        }elseif(is_string($value)){
+        } elseif (is_string($value)) {
             $sql .= " `{$name}` = '{$value}',";
         }
     }
@@ -1730,7 +1529,7 @@ function _db_soft_delete($table)
  */
 function _db_auto_timestamp($table, $insert = false)
 {
-    $timestamps = config('database.auto_event.timestamp');
+    $timestamps = config('database.declare.');
     if (!isset($timestamps[$table])) {
         $data = [];
     } else {
@@ -1790,7 +1589,7 @@ function _db_table_default_values($table, $hasAutoincrement = false)
     foreach ($fields as $field) {
         $fieldName = $field['COLUMN_NAME'];
 
-        if(!$hasAutoincrement){
+        if (!$hasAutoincrement) {
             if (stristr($field['EXTRA'], 'auto_increment')) {
                 //属性携带自增长属性，则跳过
                 continue;
@@ -1825,7 +1624,7 @@ function _db_table_default_values($table, $hasAutoincrement = false)
  */
 function _db_complete_insert($table, $data)
 {
-    if (!config('database.auto_event.complete_insert')) {
+    if (!config('database.declare.complete_insert')) {
         return $data;
     }
     //非空值
@@ -1962,7 +1761,7 @@ function db_select($table, $where = '', $field = '', $order = '', $group = '', $
 
     $result = _mysql_select(db_table($table), $field, $where, $order, $group, $limit, $having);
 
-    return _db_auto_query($table, $result);
+    return _db_relation($table, $result);
 }
 
 /**
@@ -1976,7 +1775,7 @@ function db_select($table, $where = '', $field = '', $order = '', $group = '', $
 function db_count($table, $where, $count = '*')
 {
     $result = db_select($table, $where, "COUNT({$count}) as `hosp_count`", '', '', 1);
-    return intval(isset($result[0]['hosp_count']) ?$result[0]['hosp_count'] : 0);
+    return intval(isset($result[0]['hosp_count']) ? $result[0]['hosp_count'] : 0);
 }
 
 /**
@@ -2036,9 +1835,9 @@ function db_get($table, $id, $field = '', $pk = 'id')
  * @return mixed
  * @author EdwardCho
  */
-function _db_auto_query($table, $data)
+function _db_relation($table, $data)
 {
-    $queryList = config('database.auto_event.query');
+    $queryList = config('database.declare..relation');
     if (is_array($queryList) && count($queryList) == 0) {
         return $data;
     }
@@ -2141,7 +1940,8 @@ function _hosp_resolve(string $express, array $params = [])
     //拆分get参数
     $index = stripos($express, '?');
     if (is_numeric($index)) {
-        $params = array_merge(get_string_to_array($express), $params);
+        parse_str($express, $args);
+        $params = array_merge($args, $params);
         $express = substr($express, 0, $index);
     }
 
@@ -2709,90 +2509,6 @@ function _hosp_standard_resolve(string $express)
 }
 
 /**
- * 变量注入
- * @param $name
- * @param $value
- * @author EdwardCho
- */
-function assign($name, $value)
-{
-    if (!isset($GLOBALS['VIEW_ASSIGN'])) {
-        $GLOBALS['VIEW_ASSIGN'] = [];
-    }
-    $GLOBALS['VIEW_ASSIGN'][$name] = $value;
-}
-
-function has_assign($name)
-{
-    if (!isset($GLOBALS['VIEW_ASSIGN'])) {
-        return false;
-    }
-    return isset($GLOBALS['VIEW_ASSIGN'][$name]);
-}
-
-/**
- * 指定视图
- * @param $file
- * @param bool $layout 是否使用模板
- * @return array
- * @author EdwardCho
- */
-function view($file, $layout = true)
-{
-    $files = [];
-
-    $common = config('view.common');
-    if (is_callable($common)) {
-        $common();
-    }
-
-    if ($layout) {
-        /** 模板头部 */
-        $layout = config('view.layout');
-        if (isset($layout['top'])) {
-            if (!is_array($layout['top'])) {
-                if (is_string($layout['top']) && !empty(trim($layout['top']))) {
-                    $files[] = $layout['top'];
-                }
-            } else {
-                foreach ($layout['top'] as $file) {
-                    $files[] = $file;
-                }
-            }
-        }
-    }
-    /** 主体 */
-    $files[] = $file;
-
-    if ($layout) {
-        /** 模板尾部 */
-        if (isset($layout['bottom'])) {
-            if (!is_array($layout['bottom'])) {
-                if (is_string($layout['bottom']) && !empty(trim($layout['bottom']))) {
-                    $files[] = $layout['bottom'];
-                }
-            } else {
-                foreach ($layout['bottom'] as $file) {
-                    $files[] = $file;
-                }
-            }
-        }
-    }
-    foreach ($files as &$file) {
-        if (!is_string($file) || empty(trim($file))) {
-            continue;
-        }
-
-        $file = config('view.path') . DS . $file . '.' . config('view.ext');
-        if (!file_exists($file)) {
-            _error($file . '文件不存在');
-        }
-    }
-
-    return [$files, 'file'];
-}
-
-/**
  * 分页工具
  * @param null $total
  * @param null $page
@@ -2801,9 +2517,10 @@ function view($file, $layout = true)
  * @return mixed
  * @author EdwardCho
  */
-function paging($total = null, $page = null, $size  = null, $pageNumber = 5){
-    if(is_null($total)){
-        if(!isset($GLOBALS['paging'])){
+function paging($total = null, $page = null, $size = null, $pageNumber = 5)
+{
+    if (is_null($total)) {
+        if (!isset($GLOBALS['paging'])) {
             _error('请先配置分页信息');
         }
         return $GLOBALS['paging'];

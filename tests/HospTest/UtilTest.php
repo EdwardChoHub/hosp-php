@@ -5,7 +5,6 @@ namespace HospTest;
 use PHPUnit\Framework\TestCase;
 use function hosp\_callback;
 use function hosp\_response;
-use function hosp\array_to_get_string;
 use function hosp\config;
 use function hosp\dump;
 use function hosp\error;
@@ -63,7 +62,7 @@ class UtilTest extends TestCase
     {
         $this->assertEquals(
             '?a=1&b=2',
-            array_to_get_string(['a' => 1, 'b' => 2])
+            http_build_query(['a' => 1, 'b' => 2])
         );
     }
 

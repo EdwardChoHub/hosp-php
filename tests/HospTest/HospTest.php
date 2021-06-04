@@ -7,7 +7,6 @@ namespace HospTest;
 use function hosp\_hosp_resolve;
 use function hosp\_hosp_simple_resolve;
 use function hosp\_hosp_standard_resolve;
-use function hosp\array_to_get_string;
 use function hosp\config;
 use function hosp\hosp;
 
@@ -186,7 +185,7 @@ class HospTest extends TestCase
         $express = '/user/selectById';
         $express1 = '/user/select{by[id]}';
         $data = ['id' => 1];
-        $dataString = array_to_get_string($data);
+        $dataString = http_build_query($data);
 
         $result = _hosp_resolve($express, $data);
         $result1 = _hosp_resolve($express . $dataString);
@@ -200,7 +199,7 @@ class HospTest extends TestCase
 
     public function testHosp(){
         $data = ['name' => 'test_hosp' . $this->testId];
-        $dataString = array_to_get_string($data);
+        $dataString = http_build_query($data);
         $result = hosp('/test/insert', $data);
         $this->assertEquals(1, $result);
 
