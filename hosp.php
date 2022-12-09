@@ -665,6 +665,11 @@ function _run()
         }
     }
 
+    //引入指定文件
+    if(file_exists(ROOT_PATH . "/hosp/index.php")){
+        require_once ROOT_PATH . "/hosp/index.php";
+    }
+
 
     /** 页面不进行直接渲染 */
     ob_start();
